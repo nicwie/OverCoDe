@@ -44,7 +44,6 @@ private:
     };
 
     /**
-     * !TODO: change to variation of hamming distance
      * goal: if we have
      * vec1: R B B U R U B
      * vec2: B B R U R B B
