@@ -16,10 +16,11 @@ enum Token { R, B };
 
 class DistributedProcess {
 private:
+	vector<unordered_set<int>> G; // Graph adjacency list
     int T; // Number of rounds
     int k; // Number of pushes
     int rho; // Number of majority samples
-    vector<unordered_set<int>> G; // Graph adjacency list
+    
     int n; // Number of nodes in the graph
 
 
@@ -45,12 +46,13 @@ private:
 
 public:
     DistributedProcess(vector<unordered_set<int>> graph, int rounds, int pushes, int majoritySamples)
-        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n, vector<Token> (T)) {
+        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()) {
         srand(time(nullptr));
     }
 
     // Function to execute the distributed process
     void runProcess() {
+	X.resize(n, vector<Token> (T+1));
 	receivedToken.resize(n);
         // Random Initialization
         for (int u = 0; u < n; u++) {

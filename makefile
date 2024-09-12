@@ -2,7 +2,8 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -fopenmp -Wall -O2
+CXXFLAGS = -fopenmp -Wall -Werror -O2
+DEBUGFLAGS = -Wall -Werror -g  # Flags for debugging
 
 # Target executable
 TARGET = main
@@ -18,6 +19,11 @@ HEADERS = OverCoDe.h DistributedProcess.h ClusteredGraph.h
 
 # Rule to build the executable
 $(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+
+# Rule to build the executable with debugging information
+debug: CXXFLAGS = $(DEBUGFLAGS)
+debug: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
 # Rule to compile source files into object files

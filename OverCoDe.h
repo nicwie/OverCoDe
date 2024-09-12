@@ -15,16 +15,17 @@
 #include <stdlib.h>
 #include <time.h>
 #include "DistributedProcess.h"
+#include <omp.h>
 
 using namespace std;
 
 
 class OverCoDe {
 private:
+	vector<unordered_set<int>> G;
     int T, k, rho, ell;
     double alpha1, alpha2;
     time_t startTime, elapsedTime;
-    vector<unordered_set<int>> G;
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
     DistributedProcess* dp;
@@ -54,7 +55,7 @@ private:
     double similarity(const vector<int>& a, const vector<int>& b) {
         int common = 0, validIndices = 0;
 
-        for (int i = 0; i < min(a.size(), b.size()); i++) {
+        for (int i = 0; i < (int)min(a.size(), b.size()); i++) {
             if (a[i] != -1 && b[i] != -1) {  // Ensure both indices are valid
                 validIndices++;
                 if (a[i] == b[i]) {
@@ -100,20 +101,21 @@ public:
 
         startTime = time(NULL);
 
+	omp_set_num_threades(4);
 
         // Generate Signatures
         // this loop provides a vector which has the most common result for every node in each iteration
+	#pragma omp parallel for
         for (int i = 1; i <= ell; ++i) {
             dp = new DistributedProcess(G, T, k, rho);
             dp->runProcess();
             cout << i << " of " << ell << endl;
             dp->printResults();
             const vector<vector<Token>>& X = dp->getResult();
-
             // Count if a state appers more often than alpha2 * T
             for (int u = 0; u < (int)G.size(); ++u) {
                 int countR = 0, countB = 0;
-                for (int t = 0; t < (int)X[u].size(); ++t) {
+                for (int t = 0; t < (int)X[u].size(); t++) {
                     (X[u][t] == R) ? countR++ : countB++;
                 }
 
@@ -134,7 +136,7 @@ public:
         vector<vector<int>> sharedMemory(G.size());
 
         // Identify Clusters
-        for (int u = 0; u < G.size(); ++u) {
+        for (int u = 0; u < (int)G.size(); ++u) {
             //if (bernoulli(log((double)G.size()) / (double)G.size())) {
                 if (count_if(si[u].begin(), si[u].end(), [](int x) {return x != -1; }) >= alpha1 * ell) {
                     sharedMemory[u] =  si[u];
@@ -143,7 +145,7 @@ public:
         }
         cout << "Got Pure Signatures" << endl;
 
-        for (int u = 0; u < G.size(); ++u) {
+        for (int u = 0; u < (int)G.size(); ++u) {
 
             for (vector<int> signature : clustersIDs(sharedMemory, alpha1)) {
                 if (similarity(si[u], signature) >= alpha1) {

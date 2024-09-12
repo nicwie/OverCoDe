@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdlib>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -13,8 +14,20 @@
 
 using namespace std;
 
-int main() {
-    int n = 1000;  // Number of nodes in each cluster
+int main(int argc, char *argv[]) {
+
+    if (argc != 2) {
+	cout << "Usage: ./main <Nodes per cluster>" << endl;
+	return 0;
+    }
+
+    int n = atoi(argv[1]);  // Number of nodes in each cluster
+
+    if (n < 1) {
+	cout << "Invalid number of nodes!" << endl;
+	return 0;
+    }
+
     float p = pow((float) n, 0.75) / n;
     float T = (5 * log2(n));   // Number of rounds
     int k = (log(n) / p);   // Number of pushes
