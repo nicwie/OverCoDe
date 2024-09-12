@@ -24,7 +24,7 @@ private:
 
 
     vector<vector<Token>> X; // History configuration matrix
-    vector<vector<Token>> recievedToken;
+    vector<unordered_set<Token>> receivedToken;
 
 
     // Function to randomly initialize the tokens
@@ -45,35 +45,39 @@ private:
 
 public:
     DistributedProcess(vector<unordered_set<int>> graph, int rounds, int pushes, int majoritySamples)
-        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n), recievedToken(n) {
+        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n, vector<Token> (T)) {
         srand(time(nullptr));
     }
 
     // Function to execute the distributed process
     void runProcess() {
+	receivedToken.resize(n);
         // Random Initialization
         for (int u = 0; u < n; u++) {
-            X[u].push_back(randomToken());
+            X[u][0] = (randomToken());
         }
 
         // Symmetry Breaking
         for (int u = 0; u < n; u++) {
             vector<int> M = sample(k, G[u]);
             for (int v : M) {
-                recievedToken[v].push_back(X[u][0]);
+                receivedToken[v].insert(X[u][0]);
             }
         }
 
         for (int u = 0; u < n; u++) {
             int countR = 0;
             int countB = 0;
-            for (Token v : recievedToken[u]) {
+            for (Token v : receivedToken[u]) {
                 (v == R) ? countR++ : countB++;
             }
 
             // Save the most common state to matrix; if equal, randomize state
-            X[u].push_back((countR > countB) ? R : (countR < countB) ? B : randomToken());
+            X[u][1] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
         }
+
+        receivedToken.clear();
+        receivedToken.shrink_to_fit();
 
         // ρ-Majority process
         for (int t = 2; t <= T; t++) {
@@ -84,7 +88,7 @@ public:
                 for (int v : v_sampled) {
                     (X[v][t-1] == R) ? countR++ : countB++;
                 }
-                X[u].push_back((countR > countB) ? R : (countR < countB) ? B : randomToken());
+                X[u][t] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
             }
         }
     }
