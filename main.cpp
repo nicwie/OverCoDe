@@ -16,7 +16,7 @@ using namespace std;
 int main() {
     int n = 1000;  // Number of nodes in each cluster
     float p = pow((float) n, 0.75) / n;
-    float T = (5 * log2(n));   // Number of rounds //!TODO div. by 'p'
+    float T = (5 * log2(n));   // Number of rounds
     int k = (log(n) / p);   // Number of pushes
     int rho = 3; // Number of majority samples
     int l = T; // Number of iterations

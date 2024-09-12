@@ -27,3 +27,4 @@ $(TARGET): $(OBJS)
 # Rule to clean up the build
 clean:
 	rm -f $(OBJS) $(TARGET)
+	rm -f *.txt
