@@ -22,13 +22,12 @@ using namespace std;
 
 class OverCoDe {
 private:
-	vector<unordered_set<int>> G;
+	vector<vector<int>> G;
     int T, k, rho, ell;
     double alpha1, alpha2;
     time_t startTime, elapsedTime;
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
-    DistributedProcess* dp;
 
     bool bernoulli(double p) {
         return (rand() / (double)RAND_MAX) < p;
@@ -90,7 +89,7 @@ private:
 
 
 public:
-    OverCoDe(vector<unordered_set<int>> adjList, int rounds, int pushes, int majoritySamples, int L, double alpha1, double alpha2)
+    OverCoDe(vector<vector<int>> adjList, int rounds, int pushes, int majoritySamples, int L, double alpha1, double alpha2)
         : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), alpha1(alpha1), alpha2(alpha2) {
         si.resize(G.size());
         C.resize(G.size());
@@ -101,16 +100,13 @@ public:
 
         startTime = time(NULL);
 
-	omp_set_num_threades(4);
-
         // Generate Signatures
         // this loop provides a vector which has the most common result for every node in each iteration
-	#pragma omp parallel for
         for (int i = 1; i <= ell; ++i) {
-            dp = new DistributedProcess(G, T, k, rho);
+            DistributedProcess* dp = new DistributedProcess(G, T, k, rho);
             dp->runProcess();
-            cout << i << " of " << ell << endl;
-            dp->printResults();
+            // cout << i << " of " << ell << endl;
+            // dp->printResults();
             const vector<vector<Token>>& X = dp->getResult();
             // Count if a state appers more often than alpha2 * T
             for (int u = 0; u < (int)G.size(); ++u) {
