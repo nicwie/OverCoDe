@@ -20,7 +20,7 @@ private:
     int T; // Number of rounds
     int k; // Number of pushes
     int rho; // Number of majority samples
-    
+
     int n; // Number of nodes in the graph
 
 
@@ -37,7 +37,6 @@ private:
     vector<int> sample(int num, const unordered_set<int>& neighbors) {
         vector<int> sampled;
         vector<int> neighbor_vec(neighbors.begin(), neighbors.end());
-        random_shuffle(neighbor_vec.begin(), neighbor_vec.end()); // change to access random node 
         for (int i = 0; i < k ; i++) {
             sampled.push_back(neighbor_vec[rand() % neighbor_vec.size()]);
         }
@@ -66,7 +65,7 @@ public:
                 receivedToken[v].insert(X[u][0]);
             }
         }
-	
+
         for (int u = 0; u < n; u++) {
             int countR = 0;
             int countB = 0;
