@@ -18,7 +18,7 @@ private:
     int overlap;  // Number of overlapping nodes
     double intraProb;  // Probability of intra-cluster edges
     double interProb;  // Probability of inter-cluster edges
-    vector<unordered_set<int>> adjList;  // Adjacency list for the graph
+    vector<vector<int>> adjList;  // Adjacency list for the graph
 
     bool coinFlip(double probability) {
         return ((double)(rand() % 100) / 100.0) < probability;
@@ -41,8 +41,8 @@ public:
         for (int i = 0; i < n; ++i) {
             for (int j = i + 1; j < n; ++j) {
                 if (coinFlip(intraProb)) {
-                    adjList[i].insert(j);
-                    adjList[j].insert(i);
+                    adjList[i].push_back(j);
+                    adjList[j].push_back(i);
                 }
             }
         }
@@ -51,18 +51,18 @@ public:
         for (int i = n - overlap; i < n * 2 - overlap; ++i) {
             for (int j = i + 1; j < n * 2 - overlap; ++j) {
                 if (coinFlip(intraProb)) {
-                    adjList[i].insert(j);
-                    adjList[j].insert(i);
+                    adjList[i].push_back(j);
+                    adjList[j].push_back(i);
                 }
             }
         }
 
         // Generate inter-cluster edges between Cluster 1 and Cluster 2
         for (int i = 0; i < n; ++i) {
-            for (int j = n; j < n * 2 - overlap; ++j) {
+            for (int j = n - overlap; j < n * 2 - overlap; ++j) {
                 if (coinFlip(interProb)) {
-                    adjList[i].insert(j);
-                    adjList[j].insert(i);
+                    adjList[i].push_back(j);
+                    adjList[j].push_back(i);
                 }
             }
         }
@@ -78,7 +78,7 @@ public:
         }
     }
 
-    const vector<unordered_set<int>>& getAdjList() const {
+    const vector<vector<int>>& getAdjList() const {
         return adjList;
     }
 
