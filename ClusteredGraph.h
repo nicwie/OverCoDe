@@ -28,7 +28,7 @@ public:
     ClusteredGraph(int numNodes)
         : n(numNodes),
           overlap(numNodes / 50),
-          intraProb(pow(numNodes, 0.75) / numNodes),
+          intraProb((pow(numNodes, 0.75) / numNodes) * 3.5),
           interProb(pow(numNodes, 0.75) / (20.0 * numNodes)),
           adjList(2 * numNodes - overlap) {
 
@@ -49,7 +49,7 @@ public:
 
         // Generate intra-cluster edges for Cluster 2
         for (int i = n - overlap; i < n * 2 - overlap; ++i) {
-            for (int j = i + 1; j < n * 2 - overlap; ++j) {
+            for (int j = i + 1 + overlap; j < n * 2 - overlap; ++j) { // using + overlap so we do not connect the overlap twice
                 if (coinFlip(intraProb)) {
                     adjList[i].push_back(j);
                     adjList[j].push_back(i);
