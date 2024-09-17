@@ -16,6 +16,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
+    auto startTime = time(NULL);
     /*
     if (argc != 2) {
 	cout << "Usage: ./main <Nodes per cluster>" << endl;
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
     // Create a ClusteredGraph object
     //ClusteredGraph graph(n);
 
-    cout << "Graph created" << endl;
+
 
     // Only run dp, not OCD
      // DistributedProcess dp(graph.getAdjList(), T, k, rho);
@@ -54,16 +55,19 @@ int main(int argc, char *argv[]) {
 
 
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 20; i++) {
         ClusteredGraph* graph = new ClusteredGraph(n);
+        cout << "Graph created" << endl;
         for (int j = 0; j < 20; j++) {
             cout << "[" << i << "]" << "[" << j << "]" << endl;
-            ofstream f;
 
-            f.open("test_4950_repeated_graph_fixed", f.app);
-            f << i << " " << j << endl;
             OverCoDe* ocd = new OverCoDe(graph->getAdjList(), T, k, rho, l, alpha_1, alpha_2);
             ocd->runOverCoDe();
+
+
+            ofstream f;
+            f.open("test_4950_repeated_3.5xp", f.app);
+            f << i << " " << j << endl;
 
             auto clusters = ocd->getClusters();
             for (const auto& pair : clusters) {
@@ -83,6 +87,9 @@ int main(int argc, char *argv[]) {
         delete graph;
     }
 
+    auto elapsedTime = time(NULL) - startTime;
+
+    cout << (elapsedTime / 60) % 60 << "h " << elapsedTime / 60 << "min " << elapsedTime % 60 <<  " s" << endl;
     // ocd.printClusters();
 
     // ocd.printClustersToFile("test_" + to_string(graph.getAdjList().size()) + "_nodes.txt");
