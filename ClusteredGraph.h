@@ -138,6 +138,7 @@ public:
             intraProb = 1;
             interProb = (float)1 / 60;
         }
+        printProbabilities();
         srand(time(nullptr));
         generateClusters();
     }
@@ -262,6 +263,13 @@ public:
 
     const vector<vector<int>>& getAdjList() const {
         return adjList;
+    }
+    
+    void printProbabilities() {
+    	cout << "p: " << p << endl;
+    	cout << "q: " <<  q << endl;
+    	cout << "intraProb: " << intraProb << endl;
+    	cout << "interProb: " << interProb << endl;
     }
 
 };
