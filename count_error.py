@@ -3,7 +3,7 @@ import time
 from math import comb
 
 usage = """
-usage: python3 count_errors.py <filename> <graphs> <simulations per graph> <expected cluster size> <expected n° of clusters> (<output file note>)
+usage: python3 count_error.py <filename> <graphs> <simulations per graph> <expected cluster size> <expected n° of clusters> (<output file note>)
 
 """
 
