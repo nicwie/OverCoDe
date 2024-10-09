@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <numeric>
+#include <omp.h>
 
 using namespace std;
 
@@ -16,7 +17,7 @@ enum Token { R, B };
 
 class DistributedProcess {
 private:
-	vector<unordered_set<int>> G; // Graph adjacency list
+	vector<vector<int>> G; // Graph adjacency list
     int T; // Number of rounds
     int k; // Number of pushes
     int rho; // Number of majority samples
@@ -34,38 +35,42 @@ private:
     }
 
     // Function to sample k neighbors from a set of neighbors N(u)
-    vector<int> sample(int num, const unordered_set<int>& neighbors) {
+    vector<int> sample(int num, const vector<int>& neighbors) {
         vector<int> sampled;
-        vector<int> neighbor_vec(neighbors.begin(), neighbors.end());
-        for (int i = 0; i < k ; i++) {
-            sampled.push_back(neighbor_vec[rand() % neighbor_vec.size()]);
+        if (neighbors.size() == 0) {
+            return sampled;
+        }
+        for (int i = 0; i < num ; i++) {
+            sampled.push_back(neighbors[rand() % neighbors.size()]);
         }
         return sampled;
     }
 
 public:
-    DistributedProcess(vector<unordered_set<int>> graph, int rounds, int pushes, int majoritySamples)
-        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()) {
+    DistributedProcess(vector<vector<int>>& graph, int rounds, int pushes, int majoritySamples)
+        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n, vector<Token> (T+1)) {
         srand(time(nullptr));
     }
 
     // Function to execute the distributed process
     void runProcess() {
-	X.resize(n, vector<Token> (T+1));
-	receivedToken.resize(n);
+        receivedToken.resize(n);
         // Random Initialization
         for (int u = 0; u < n; u++) {
             X[u][0] = (randomToken());
         }
 
         // Symmetry Breaking
+        #pragma omp parallel for
         for (int u = 0; u < n; u++) {
             vector<int> M = sample(k, G[u]);
             for (int v : M) {
+                #pragma omp critical
                 receivedToken[v].insert(X[u][0]);
             }
         }
 
+        //#pragma omp parallel for
         for (int u = 0; u < n; u++) {
             int countR = 0;
             int countB = 0;
@@ -74,11 +79,13 @@ public:
             }
 
             // Save the most common state to matrix; if equal, randomize state
+            //#pragma omp critical
             X[u][1] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
         }
 
-        receivedToken.clear();
-        receivedToken.shrink_to_fit();
+        for (auto &tokens : receivedToken) {
+            tokens.clear();
+        }
 
         // ρ-Majority process
         for (int t = 2; t <= T; t++) {
@@ -100,7 +107,7 @@ public:
     }
 
     // function to print the history of the state matrix
-    const void printStates() {
+    void printStates() {
         for (int u = 0; u < (int) X.size(); u++) {
         cout << "Node " << u << " had states: ";
             for (int c : X[u]) {
@@ -110,7 +117,8 @@ public:
         }
     }
 
-    const void printResults() {
+    // Prints debug info
+    void printResults() {
         int countR = 0, countB = 0;
         cout << "Starting states: ";
         for (int i = 0; i < (int) X.size(); i++) {

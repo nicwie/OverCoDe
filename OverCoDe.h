@@ -29,10 +29,6 @@ private:
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
 
-    bool bernoulli(double p) {
-        return (rand() / (double)RAND_MAX) < p;
-    }
-
     struct vectorHash {
     size_t operator()(const vector<int>& v) const {
         size_t seed = v.size();
@@ -70,11 +66,11 @@ private:
         return (double)common / validIndices;  // Ratio of matching valid states
     }
 
-    vector<vector<int>> clustersIDs (vector<vector<int>> S, double alpha) {
+    vector<vector<int>> clustersIDs (vector<vector<int>>& S, double alpha) {
         vector<vector<int>> signatures;
-        for (auto signatureV : S) {
+        for (const auto& signatureV : S) {
             bool isUnique = true;
-            for (auto signatureU : signatures) {
+            for (const auto& signatureU : signatures) {
                 if (similarity(signatureU, signatureV) >= alpha) {
                     isUnique = false;
                     break;
@@ -139,16 +135,20 @@ public:
                 }
             //}
         }
+
+        vector<vector<int>> signatures = clustersIDs(sharedMemory, alpha1);
+
         cout << "Got Pure Signatures" << endl;
-
+        #pragma omp parallel for
         for (int u = 0; u < (int)G.size(); ++u) {
-
-            for (vector<int> signature : clustersIDs(sharedMemory, alpha1)) {
+            for (vector<int> signature : signatures) {
                 if (similarity(si[u], signature) >= alpha1) {
+                    #pragma omp critical
                     C[u].push_back(signature);
                 }
             }
         }
+
         elapsedTime = time(NULL) - startTime; // used in printClustersToFile
     }
 
@@ -156,7 +156,7 @@ public:
         return C;
     }
 
-    const void printResults() {
+    void printResults() {
         for (int i = 0; i < (int)C.size(); i++) {
             cout << "Clusters node " << i << " is in: " << endl;
             for (int j = 0; j < (int)C[i].size(); j++) {
@@ -169,6 +169,27 @@ public:
         }
     }
 
+    void printHistoryToFile(string filename) {
+        ofstream c;
+        c.open(filename);
+        int i = 0;
+
+        for (vector<int>& vec : si) {
+            c << i << endl;
+            // cout << i << endl;
+            i++;
+            for(int& node : vec) {
+                c << node << " ";
+                // cout << node << " ";
+            }
+            c << endl << endl;
+            // cout << endl << endl;
+        }
+
+        c.close();
+        cout << "history written" << endl;
+    }
+
     unordered_map<vector<int>, unordered_set<int>, vectorHash> getClusters() {
         unordered_map<vector<int>, unordered_set<int>, vectorHash> clusters;
         for (int i = 0; i < (int)C.size(); i++) {
@@ -179,10 +200,11 @@ public:
         return clusters;
     }
 
-    const void printClusters() {
+    void printClusters() {
         auto clusters = getClusters();
+        int i = 0;
         for (const auto& pair : clusters) {
-            cout << "Cluster: ";
+            cout << "Cluster "  << ++i << ": ";
             for (int num : pair.first) {
                 cout << num << " ";
             }
@@ -194,12 +216,13 @@ public:
         }
     }
 
-    const void printClustersToFile(string name) {
+    void printClustersToFile(string name) {
         ofstream f;
         f.open(name);
+        int i = 0;
         auto clusters = getClusters();
         for (const auto& pair : clusters) {
-            f << "Cluster: ";
+            f << "Cluster " << ++i << ": ";
             for (int num : pair.first) {
                 f << num << " ";
             }

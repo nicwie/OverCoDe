@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -fopenmp -Wall -Werror -O2
+CXXFLAGS = -fopenmp -Wall -Werror -O3
 DEBUGFLAGS = -Wall -Werror -g  # Flags for debugging
 
 # Target executable
@@ -33,3 +33,7 @@ debug: $(OBJS)
 # Rule to clean up the build
 clean:
 	rm -f $(OBJS) $(TARGET)
+
+# Rule to build and run the program
+run: $(TARGET)
+	./$(TARGET)
