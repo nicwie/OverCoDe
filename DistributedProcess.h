@@ -61,19 +61,17 @@ public:
         }
 
         // Symmetry Breaking
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (int u = 0; u < n; u++) {
             vector<int> M = sample(k, G[u]);
             for (int v : M) {
-                #pragma omp critical
+                //#pragma omp critical
                 ++receivedToken[v][X[u][0]];
             }
         }
 
-        #pragma omp parallel for
         for (int u = 0; u < n; u++) {
             // Save the most common state to matrix; if equal, randomize state
-            #pragma omp critical
             X[u][1] = ((receivedToken[u][R] > receivedToken[u][B]) ? R : (receivedToken[u][R] < receivedToken[u][B]) ? B : randomToken());
         }
 
