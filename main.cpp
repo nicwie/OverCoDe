@@ -12,6 +12,7 @@
 #include "DistributedProcess.h"
 
 
+
 using namespace std;
 
     bool contains (vector<int> g, int n) {

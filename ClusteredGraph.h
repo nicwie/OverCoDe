@@ -3,14 +3,11 @@
 
 #include <iostream>
 #include <vector>
-#include <random>
 #include <cmath>
-#include <unordered_set>
 #include <unordered_map>
 #include <stdlib.h>
-#include <time.h>
-#include <chrono>
 #include <algorithm>
+#include "RandomGenerator.h"
 
 using namespace std;
 
@@ -33,10 +30,10 @@ private:
     double intraProb;  // Probability of intra-cluster edges
     double interProb;  // Probability of inter-cluster edges
     vector<vector<int>> adjList;  // Adjacency list for the graph
-    mt19937 mt;
+    RandomGenerator rng;
 
     bool coinFlip(double probability) {
-        return ((double)(mt() % 100) / 100.0) < probability;
+        return (rng.getRandomDouble(0.0,100.0) / 100.0) < probability;
     }
 
     // n Choose r
@@ -135,7 +132,8 @@ public:
           p(2.5 * ((log2(n)) / pow(n, (double)1/4))),
           q(p / 60),
           intraProb(p),
-          interProb(q)
+          interProb(q),
+          rng()
     {
         if(intraProb > 1) {
             intraProb = 1;

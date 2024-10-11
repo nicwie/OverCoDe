@@ -4,12 +4,11 @@
 
 #include <vector>
 #include <unordered_map>
-#include <unordered_set>
 #include <stdlib.h>
 #include <algorithm>
 #include <numeric>
 #include <omp.h>
-#include <random>
+#include "RandomGenerator.h"
 
 using namespace std;
 
@@ -22,18 +21,18 @@ private:
     int T; // Number of rounds
     int k; // Number of pushes
     int rho; // Number of majority samples
-    mt19937 mt;
 
     int n; // Number of nodes in the graph
 
 
     vector<vector<Token>> X; // History configuration matrix
-    vector<unordered_set<Token>> receivedToken;
+    vector<unordered_map<Token, int>> receivedToken;
 
+	RandomGenerator rng;
 
     // Function to randomly initialize the tokens
     Token randomToken() {
-        return (mt() % 2 == 0) ? R : B;
+        return ((Token)rng.getRandomInt(0,1));
     }
 
     // Function to sample k neighbors from a set of neighbors N(u)
@@ -43,15 +42,14 @@ private:
             return sampled;
         }
         for (int i = 0; i < num ; i++) {
-            sampled.push_back(neighbors[mt() % neighbors.size()]);
+            sampled.push_back(neighbors[rng.getRandomInt(0, (int)neighbors.size() - 1)]);
         }
         return sampled;
     }
 
 public:
     DistributedProcess(vector<vector<int>>& graph, int rounds, int pushes, int majoritySamples)
-        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n, vector<Token> (T+1)) {
-        srand(time(nullptr));
+        : G(graph), T(rounds), k(pushes), rho(majoritySamples), n(graph.size()), X(n, vector<Token> (T+1)), rng() {
     }
 
     // Function to execute the distributed process
@@ -68,25 +66,15 @@ public:
             vector<int> M = sample(k, G[u]);
             for (int v : M) {
                 #pragma omp critical
-                receivedToken[v].insert(X[u][0]);
+                ++receivedToken[v][X[u][0]];
             }
         }
 
-        //#pragma omp parallel for
+        #pragma omp parallel for
         for (int u = 0; u < n; u++) {
-            int countR = 0;
-            int countB = 0;
-            for (Token v : receivedToken[u]) {
-                (v == R) ? countR++ : countB++;
-            }
-
             // Save the most common state to matrix; if equal, randomize state
-            //#pragma omp critical
-            X[u][1] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
-        }
-
-        for (auto &tokens : receivedToken) {
-            tokens.clear();
+            #pragma omp critical
+            X[u][1] = ((receivedToken[u][R] > receivedToken[u][B]) ? R : (receivedToken[u][R] < receivedToken[u][B]) ? B : randomToken());
         }
 
         // ρ-Majority process

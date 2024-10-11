@@ -3,7 +3,7 @@ CXX = g++
 
 # Compiler flags
 CXXFLAGS = -fopenmp -Wall -Werror -O3
-DEBUGFLAGS = -Wall -Werror -g  # Flags for debugging
+DEBUGFLAGS = -Wall -Werror -g -fopenmp  # Flags for debugging
 
 # Target executable
 TARGET = main
