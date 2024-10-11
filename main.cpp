@@ -63,7 +63,7 @@ int main(int argc, char * argv[]) {
 
 
     float p = pow((float) n, 0.75) / n;
-    float T = (5 * log2(n));   // Number of rounds
+    int T = (5 * log2(n));   // Number of rounds
     int k = (log2(n) / p);   // Number of pushes
     int rho = 3; // Number of majority samples
     int l = T; // Number of iterations
@@ -77,8 +77,6 @@ int main(int argc, char * argv[]) {
     a.close();
 
     cout << "Before graph" << endl;
-
-
 
 
     for (int i = 0; i < 1; i++) {

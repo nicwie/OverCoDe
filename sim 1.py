@@ -1,0 +1,35 @@
+from itertools import combinations
+
+
+def f(s):
+    return s.replace(" ", "")
+
+
+def similarity(s1, s2):
+    d = [1 if s1_i == s2_i else 0 for s1_i, s2_i in zip(s1, s2) if s1_i != "x" and s2_i != "x"]
+    return sum(d) / len(d)
+
+
+c = [
+    f("1 0 0 1 1 0 0 1 1 1 0 1 0 0  01011110110101011101101100110111011011101011011"),
+    f("0 0 0 1 1 0 0 0 1 0 0 1 1 0  11011010001011110111010010100000110001101011010"),
+    f("0 0 0 1 1 1 0 0 0 1 0 1 1 0  11011100001000100010010000110110011000110110111"),
+]
+
+l = [
+    f("x0011x00110110110111x0x01x01x10x11xx00x0110xxx01x00x101x1x011"),
+    f("x00110001101x0x1011x10x01x01x101x1xx0x001101x0x1x0xx1xxx11011"),
+    f("x001100x1101x0x10111x0x010x11xxx110x0000110x1001100x101x1xx1x"),
+    f("000110001101101101111000xx0xx101x1xxxx0011011001x0xx1xx01101x"),
+    f("x0011x0xx101x0110111x000xxx11101x1xx0x00110x1x01x0xx1xxx1xx1x"),
+    f("000110001101x0x1011xx0x0xxxx1xxxx1xx00x01x0xx001x0x11xxx11x11"),
+    f("000110001x011011011xx00x10x11xxxx1010x001x0x10x110011xx011x11"),
+    f("x0011000110110x10111x0001x01110xxx0x00x0110xxx01100x10101x011"),
+    f("x0011000x10110x10111x0xxx0x1xxxxxxxx0x001x011x011001101x1x01x"),
+    f("0001100xx10110x10111x0xx1x01x10x110x0x00110xx0x1x00110101x01x"),
+]
+
+for i in range(len(l)):
+    for j in range(len(c)):
+        print(i, j, similarity(l[i], c[j]))
+    print()

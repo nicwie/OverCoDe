@@ -7,7 +7,6 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <random>
 #include <algorithm>
 #include <numeric>
 #include <cmath>
@@ -89,7 +88,6 @@ public:
         : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), alpha1(alpha1), alpha2(alpha2) {
         si.resize(G.size());
         C.resize(G.size());
-        srand(time(nullptr));
     }
 
     void runOverCoDe() {

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <numeric>
 #include <omp.h>
+#include <random>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ private:
     int T; // Number of rounds
     int k; // Number of pushes
     int rho; // Number of majority samples
+    mt19937 mt;
 
     int n; // Number of nodes in the graph
 
@@ -31,7 +33,7 @@ private:
 
     // Function to randomly initialize the tokens
     Token randomToken() {
-        return (rand() % 2 == 0) ? R : B;
+        return (mt() % 2 == 0) ? R : B;
     }
 
     // Function to sample k neighbors from a set of neighbors N(u)
@@ -41,7 +43,7 @@ private:
             return sampled;
         }
         for (int i = 0; i < num ; i++) {
-            sampled.push_back(neighbors[rand() % neighbors.size()]);
+            sampled.push_back(neighbors[mt() % neighbors.size()]);
         }
         return sampled;
     }

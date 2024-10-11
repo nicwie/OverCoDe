@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
+#include <algorithm>
 
 using namespace std;
 
@@ -31,9 +33,10 @@ private:
     double intraProb;  // Probability of intra-cluster edges
     double interProb;  // Probability of inter-cluster edges
     vector<vector<int>> adjList;  // Adjacency list for the graph
+    mt19937 mt;
 
     bool coinFlip(double probability) {
-        return ((double)(rand() % 100) / 100.0) < probability;
+        return ((double)(mt() % 100) / 100.0) < probability;
     }
 
     // n Choose r
@@ -139,13 +142,12 @@ public:
             interProb = (float)1 / 60;
         }
         printProbabilities();
-        srand(time(nullptr));
         generateClusters();
     }
 
     void generateClusters() {
 
-        vector<signed int> overlaps; // stores how large the overlap between clusters should be (there are overlaps[n-1] overlaps between n clusters)
+        vector<signed int> overlaps; // stores how large the overlap between clusters should be (there is an overlap of size overlaps[n-1] between n clusters)
         overlaps.resize(clusterNr);
 
         overlaps[1] = 30;
