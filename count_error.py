@@ -1,5 +1,6 @@
 import sys
 import time
+import argparse
 from math import comb
 
 usage = """
@@ -42,19 +43,18 @@ def readClusterFile(filename):
 	return clusters
 
 
-def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters, outputFile):
+def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRatio, outputFile):
 	timestamp = time.strftime("%Y%m%d_%H%M%S")
-	filename = f"graph_errors_{timestamp}_{outputFile}.txt"
+	filename = f"errors/graph_errors_{timestamp}_{graphs}x{runs}_{str(overlapRatio).replace(" ", "")}_{outputFile}.txt"
+	
+	overlapRatio = [0] + [0] + overlapRatio
+	
+	nrClusters = len(overlapRatio) - 1
 	
 	# global values
 	
 	notClustered = 0
 	overlap = [[0] * nrClusters for i in range(nrClusters)]
-	
-	overlapRatio = [0] * (nrClusters + 1)
-	overlapRatio[2] = 30
-	overlapRatio[3] = 10
-	# overlapRatio[4] = 1
 	
 	totalOverlap = [0] * (nrClusters + 1)
 	
@@ -63,6 +63,7 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 	nExclusive = clusterSize
 	
 	unusedNodes = []
+	totalUnusedNodes = 0;
 	
 	for k in range(2, nrClusters + 1):
 		nExclusive -= overlapRatio[k] * comb(nrClusters - 1, k - 1) #nodes that only appear in 1 graph
@@ -112,7 +113,7 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 				file.write(f"--------------------------------------\n")
 				file.write("\n")
 				
-				if i == runs: # every time all runs of 1 graph have been counted
+				if i == runs and (runs - currentNotClustered) != 0: # every time all runs of 1 graph have been counted
 					# this needs to be here, otherwise if the last run of a graph has the wrong amount of clusters it will be skipped
 					print()
 					for x in range(1, nrClusters + 1):
@@ -126,6 +127,7 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 					for node in unusedNodes:
 						print(f" {node}")
 						file.write(f" {node}")
+						
 					
 					file.write(f"\n \n")
 					for k in range(nrClusters):
@@ -143,13 +145,14 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 					print()
 					file.write(f"\n")
 					
-					
-
-					notClustered += currentNotClustered
+					totalUnusedNodes += len(unusedNodes)
 					
 					unusedNodes.clear()
-					i = 0
-					currentNotClustered = 0
+					
+					
+				i = 0
+				notClustered += currentNotClustered
+				currentNotClustered = 0
 				
 				continue
 			
@@ -208,6 +211,8 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 				print()
 				file.write(f"\n")
 				
+				totalUnusedNodes += len(unusedNodes)
+				
 				unusedNodes.clear()
 				
 				notClustered += currentNotClustered
@@ -222,6 +227,10 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 		file.write("\n")
 		if (numGraphs == 1):
 			quit()
+		elif (numGraphs == 0): 
+			print(f"No correctly clustered graphs!")
+			file.write(f"No correctly clustered graphs!\n")
+			quit()
 		
 		for x in range(1, nrClusters + 1):
 			print(f"Nodes in {x} clusters: {totalOverlap[x]} / {(overlapRatio[x] * comb(nrClusters, x)) * numGraphs} = {totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}")
@@ -235,13 +244,16 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters,
 				file.write(f"Overlap between cluster {k} and cluster {j}: {overlap[k][j]}\n")
 		
 		print(f"Has {notClustered} / {graphs * runs} not clustered.")
+		print(f"Has {totalUnusedNodes} unused nodes.")
+		file.write(f"Has {totalUnusedNodes} unused nodes.\n")
 		print()
 		file.write(f"Has {notClustered} / {graphs * runs} not clustered.\n")
+		
 			
 			
 				
 		
-
+"""
 
 if len(sys.argv) != 7 and len(sys.argv)!= 6:
 	print(usage)
@@ -253,10 +265,23 @@ runs  = int(sys.argv[3])
 clusterSize = int(sys.argv[4])
 nrClusters = int(sys.argv[5])
 
-if len(sys.argv) == 7:
-	outputFile = sys.argv[6]
+if sys.argv[-1].isdigit():
+	outputFile = sys.argv[-1]
+	
 else: 
 	outputFile = ""
+"""
 
-clusters = readClusterFile(inputFile)
-calculateMisclassifications(clusters, graphs, runs, clusterSize, nrClusters, outputFile)
+parser = argparse.ArgumentParser(description="Script that analyzes clusters output by OverCoDe implementation")
+parser.add_argument('inputFile', type=str, help="File to read clusters from")
+parser.add_argument('graphs', type=int, help="How many different graphs were clustered in the input file")
+parser.add_argument('runs', type=int, help="How often each graph was clustered")
+parser.add_argument('clusterSize', type=int, help="The size of a singular cluster")
+parser.add_argument('overlaps', nargs='+', type=int, help="Size of overlaps between n+1 clusters, e.g. \"20 9 3\" for an overlap of 20 between any 2 clusters")
+parser.add_argument('--name', type=str, help="Optional note to add to file output name")
+
+args = parser.parse_args()
+
+
+clusters = readClusterFile(args.inputFile)
+calculateMisclassifications(clusters, args.graphs, args.runs, args.clusterSize, args.overlaps, args.name)
