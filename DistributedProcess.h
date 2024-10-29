@@ -61,11 +61,11 @@ public:
         }
 
         // Symmetry Breaking
-        //#pragma omp parallel for
+        // #pragma omp parallel for
         for (int u = 0; u < n; u++) {
             vector<int> M = sample(k, G[u]);
             for (int v : M) {
-                //#pragma omp critical
+                // #pragma omp critical
                 ++receivedToken[v][X[u][0]];
             }
         }

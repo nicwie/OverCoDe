@@ -8,6 +8,10 @@ usage: python3 count_error.py <filename> <graphs> <simulations per graph> <expec
 
 """
 
+# 	def printToAll(s):
+	
+
+
 
 def readClusterFile(filename):
 	clusters = {}
@@ -45,7 +49,7 @@ def readClusterFile(filename):
 
 def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRatio, outputFile):
 	timestamp = time.strftime("%Y%m%d_%H%M%S")
-	filename = f"errors/graph_errors_{timestamp}_{graphs}x{runs}_{str(overlapRatio).replace(" ", "")}_{outputFile}.txt"
+	filename = f"errors/graph_errors_{timestamp}_{graphs}x{runs}_{str(overlapRatio).replace(" ", "")}{outputFile}.txt"
 	
 	overlapRatio = [0] + [0] + overlapRatio
 	
@@ -100,50 +104,53 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 			
 			if len(clusters) != nrClusters: 
 				currentNotClustered +=1
-				print()
-				print(f"--------------------------------------")
-				print(f"Graph [{graph[0]}][{graph[1]}] Does not have {nrClusters} clusters!")
-				print(f"Has {len(clusters)}")
-				print(f"--------------------------------------")
-				print()
-				file.write("\n")
-				file.write(f"--------------------------------------\n")
-				file.write(f"Graph [{graph[0]}][{graph[1]}] Does not have {nrClusters} clusters!\n")
-				file.write(f"Has {len(clusters)}\n")
-				file.write(f"--------------------------------------\n")
-				file.write("\n")
+				if not args.m:
+					print()
+					print(f"--------------------------------------")
+					print(f"Graph [{graph[0]}][{graph[1]}] Does not have {nrClusters} clusters!")
+					print(f"Has {len(clusters)}")
+					print(f"--------------------------------------")
+					print()
+					file.write("\n")
+					file.write(f"--------------------------------------\n")
+					file.write(f"Graph [{graph[0]}][{graph[1]}] Does not have {nrClusters} clusters!\n")
+					file.write(f"Has {len(clusters)}\n")
+					file.write(f"--------------------------------------\n")
+					file.write("\n")
 				
 				if i == runs and (runs - currentNotClustered) != 0: # every time all runs of 1 graph have been counted
 					# this needs to be here, otherwise if the last run of a graph has the wrong amount of clusters it will be skipped
-					print()
+					if not args.m:
+						print()
+						for x in range(1, nrClusters + 1):
+							print(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}")
+							file.write(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}\n")
+						file.write(f"\n \n")
+						print(f"Unused nodes: {len(unusedNodes)}")
+						file.write(f"Unused nodes: {len(unusedNodes)}\n")
+						for node in unusedNodes:
+							print(f" {node}")
+							file.write(f" {node}")
+							
+						
+						file.write(f"\n \n")
+						for k in range(nrClusters):
+							for j in range(k + 1, nrClusters):
+								print(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}")
+								print(f"Overlapping nodes: ")
+								print(*currentOverlapSets[k][j])
+								file.write(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}\n")
+								file.write(f"Overlapping nodes: \n")
+								for x in currentOverlapSets[k][j]:
+									file.write(str(x))
+								file.write("\n \n")	
+								overlap[k][j] += currentOverlap[k][j]
+								currentOverlap[k][j] = 0
+						print()
+						file.write(f"\n")
 					for x in range(1, nrClusters + 1):
-						print(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}")
-						file.write(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}\n")
 						totalOverlap[x] += overlapCounts[x]
 						overlapCounts[x] = 0
-					file.write(f"\n \n")
-					print(f"Unused nodes: {len(unusedNodes)}")
-					file.write(f"Unused nodes: {len(unusedNodes)}\n")
-					for node in unusedNodes:
-						print(f" {node}")
-						file.write(f" {node}")
-						
-					
-					file.write(f"\n \n")
-					for k in range(nrClusters):
-						for j in range(k + 1, nrClusters):
-							print(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}")
-							print(f"Overlapping nodes: ")
-							print(*currentOverlapSets[k][j])
-							file.write(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}\n")
-							file.write(f"Overlapping nodes: \n")
-							for x in currentOverlapSets[k][j]:
-								file.write(str(x))
-							file.write("\n \n")	
-							overlap[k][j] += currentOverlap[k][j]
-							currentOverlap[k][j] = 0
-					print()
-					file.write(f"\n")
 					
 					totalUnusedNodes += len(unusedNodes)
 					
@@ -176,40 +183,44 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 			
 			
 			if i == runs: # every time all runs of 1 graph have been counted
-				print()
+				if not args.m:
+					print()
+					for x in range(1, nrClusters + 1):
+						print(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}")
+						file.write(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}\n")
+					file.write(f"\n \n")
+					print()
+					
+					print(f"Unused nodes: {len(unusedNodes)}")
+					file.write(f"Unused nodes: {len(unusedNodes)}\n")
+					print(*unusedNodes)
+					for node in unusedNodes:
+						file.write(f" {node}")
+						
+					file.write(f"\n \n") 
 				for x in range(1, nrClusters + 1):
-					print(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}")
-					file.write(f"Nodes in {x} clusters: {overlapCounts[x]} / {(overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))} = {overlapCounts[x] / (overlapRatio[x] * comb(nrClusters, x) * (runs - currentNotClustered))}\n")
 					totalOverlap[x] += overlapCounts[x]
 					overlapCounts[x] = 0
-				file.write(f"\n \n")
-				print()
-				
-				print(f"Unused nodes: {len(unusedNodes)}")
-				file.write(f"Unused nodes: {len(unusedNodes)}\n")
-				print(*unusedNodes)
-				for node in unusedNodes:
-					file.write(f" {node}")
-					
-				file.write(f"\n \n") 
 					
 				for k in range(nrClusters):
 					for j in range(k + 1, nrClusters):
-						print(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}")
-						print(f"Overlapping nodes: ")
-						print(*currentOverlapSets[k][j])
-						file.write(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}\n")
-						file.write(f"Overlapping nodes: \n")
-						for x in currentOverlapSets[k][j]:
-							file.write(f"{str(x)} ")
-						file.write(f"\n \n")	
-						print()
+						if not args.m:
+							print(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}")
+							print(f"Overlapping nodes: ")
+							print(*currentOverlapSets[k][j])
+							file.write(f"Overlap between cluster {k} and cluster {j}: {currentOverlap[k][j]}\n")
+							file.write(f"Overlapping nodes: \n")
+							for x in currentOverlapSets[k][j]:
+								file.write(f"{str(x)} ")
+							file.write(f"\n \n")	
+							print()
 						
 						overlap[k][j] += currentOverlap[k][j]
 						currentOverlap[k][j] = 0
 						currentOverlapSets[k][j].clear()
-				print()
-				file.write(f"\n")
+				if not args.m:
+					print()
+					file.write(f"\n")
 				
 				totalUnusedNodes += len(unusedNodes)
 				
@@ -223,54 +234,48 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 				
 			
 		numGraphs = (graphs * runs) - notClustered
-		print()
-		file.write("\n")
-		if (numGraphs == 1):
-			quit()
-		elif (numGraphs == 0): 
-			print(f"No correctly clustered graphs!")
-			file.write(f"No correctly clustered graphs!\n")
-			quit()
-		
-		for x in range(1, nrClusters + 1):
-			print(f"Nodes in {x} clusters: {totalOverlap[x]} / {(overlapRatio[x] * comb(nrClusters, x)) * numGraphs} = {totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}")
+		if not args.m:
+			print()
+			file.write("\n")
+			if (numGraphs == 1):
+				quit()
+			elif (numGraphs == 0): 
+				print(f"No correctly clustered graphs!")
+				file.write(f"No correctly clustered graphs!\n")
+				quit()
 			
-			file.write(f"Nodes in {x} clusters: {totalOverlap[x]} / {(overlapRatio[x] * comb(nrClusters, x)) * numGraphs} = {totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}\n")
-		print()
-		file.write("\n")
-		for k in range(nrClusters):
-			for j in range(k + 1, nrClusters):
-				print(f"Overlap between cluster {k} and cluster {j}: {overlap[k][j]}")
-				file.write(f"Overlap between cluster {k} and cluster {j}: {overlap[k][j]}\n")
+			for x in range(1, nrClusters + 1):
+				print(f"Nodes in {x} clusters: {totalOverlap[x]} / {(overlapRatio[x] * comb(nrClusters, x)) * numGraphs} = {totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}")
+				
+				file.write(f"Nodes in {x} clusters: {totalOverlap[x]} / {(overlapRatio[x] * comb(nrClusters, x)) * numGraphs} = {totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}\n")
+			print()
+			file.write("\n")
+			for k in range(nrClusters):
+				for j in range(k + 1, nrClusters):
+					print(f"Overlap between cluster {k} and cluster {j}: {overlap[k][j]}")
+					file.write(f"Overlap between cluster {k} and cluster {j}: {overlap[k][j]}\n")
+			
+			print(f"Has {notClustered} / {graphs * runs} not clustered.")
+			print(f"Has {totalUnusedNodes} unused nodes.")
+			file.write(f"Has {totalUnusedNodes} unused nodes.\n")
+			print()
+			file.write(f"Has {notClustered} / {graphs * runs} not clustered.\n")
 		
-		print(f"Has {notClustered} / {graphs * runs} not clustered.")
-		print(f"Has {totalUnusedNodes} unused nodes.")
-		file.write(f"Has {totalUnusedNodes} unused nodes.\n")
-		print()
-		file.write(f"Has {notClustered} / {graphs * runs} not clustered.\n")
+		if args.m:
+			print(f"{graphs}x{runs}")
+			for x in range(1, nrClusters+1):
+				print(f"{x}:{totalOverlap[x]}/{(overlapRatio[x] * comb(nrClusters, x)) * numGraphs}={totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}")
+			print(f"{notClustered}/{graphs * runs}")
+			print(f"{totalUnusedNodes}/{uniqueNodes}")
+			print()
 		
 			
 			
 				
 		
-"""
 
-if len(sys.argv) != 7 and len(sys.argv)!= 6:
-	print(usage)
-	quit()
 
-inputFile = sys.argv[1]
-graphs = int(sys.argv[2])
-runs  = int(sys.argv[3])
-clusterSize = int(sys.argv[4])
-nrClusters = int(sys.argv[5])
-
-if sys.argv[-1].isdigit():
-	outputFile = sys.argv[-1]
-	
-else: 
-	outputFile = ""
-"""
+UNNAMED_FLAG = True
 
 parser = argparse.ArgumentParser(description="Script that analyzes clusters output by OverCoDe implementation")
 parser.add_argument('inputFile', type=str, help="File to read clusters from")
@@ -278,7 +283,8 @@ parser.add_argument('graphs', type=int, help="How many different graphs were clu
 parser.add_argument('runs', type=int, help="How often each graph was clustered")
 parser.add_argument('clusterSize', type=int, help="The size of a singular cluster")
 parser.add_argument('overlaps', nargs='+', type=int, help="Size of overlaps between n+1 clusters, e.g. \"20 9 3\" for an overlap of 20 between any 2 clusters")
-parser.add_argument('--name', type=str, help="Optional note to add to file output name")
+parser.add_argument('--name', type=str, help="Optional note to add to file output name", default="")
+parser.add_argument('-m', action='store_true', help="Flag to set if output should be minimal; only overall/final counts")
 
 args = parser.parse_args()
 

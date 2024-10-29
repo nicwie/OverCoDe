@@ -24,12 +24,12 @@ class ClusteredGraph {
 private:
     int n;  // Number of nodes in each cluster
     int clusterNr;
-    int overlap;  // Number of overlapping nodes
     double p;
     double q;
     double intraProb;  // Probability of intra-cluster edges
     double interProb;  // Probability of inter-cluster edges
     vector<vector<int>> adjList;  // Adjacency list for the graph
+    vector<int> overlaps; // stores how large the overlap between clusters should be (there is an overlap of size overlaps[n-1] between n clusters)
     RandomGenerator rng;
 
     bool coinFlip(double probability) {
@@ -125,19 +125,19 @@ private:
 
 
 public:
-    ClusteredGraph(int numNodes, int clusters)
+    ClusteredGraph(int numNodes, vector<int> overlap)
         : n(numNodes),
-          clusterNr(clusters),
-          overlap(numNodes / 50),
+          clusterNr((int) overlap.size()),
           p(2.5 * ((log2(n)) / pow(n, (double)1/4))),
-          q(p / 60),
+          q(p / 100),
           intraProb(p),
           interProb(q),
+          overlaps(overlap),
           rng()
     {
         if(intraProb > 1) {
             intraProb = 1;
-            interProb = (float)1 / 60;
+            interProb = (float)1 / 100;
         }
         printProbabilities();
         generateClusters();
@@ -145,12 +145,21 @@ public:
 
     void generateClusters() {
 
-        vector<signed int> overlaps; // stores how large the overlap between clusters should be (there is an overlap of size overlaps[n-1] between n clusters)
-        overlaps.resize(clusterNr);
+        //vector<signed int> overlaps; // stores how large the overlap between clusters should be (there is an overlap of size overlaps[n-1] between n clusters)
+        //overlaps.resize(clusterNr);
 
+        /*
+        // sizes for 4 clusters
+        overlaps[1] = 25;
+        overlaps[2] = 9;
+        overlaps[3] = 3;
+        */
+
+        /*
+        // sizes for 3 clusters
         overlaps[1] = 30;
         overlaps[2] = 10;
-        //overlaps[3] = 1;
+        */
 
         int nExclusive = n;
 
@@ -264,7 +273,7 @@ public:
     const vector<vector<int>>& getAdjList() const {
         return adjList;
     }
-    
+
     void printProbabilities() {
     	cout << "p: " << p << endl;
     	cout << "q: " <<  q << endl;

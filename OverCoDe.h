@@ -138,11 +138,11 @@ public:
         vector<vector<int>> signatures = clustersIDs(sharedMemory, alpha1);
 
         cout << "Got Pure Signatures" << endl;
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int u = 0; u < (int)G.size(); ++u) {
             for (vector<int> signature : signatures) {
                 if (similarity(si[u], signature) >= alpha1) {
-                    #pragma omp critical
+                    // #pragma omp critical
                     C[u].push_back(signature);
                 }
             }

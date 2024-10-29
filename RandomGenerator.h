@@ -17,7 +17,8 @@ public:
         std::uniform_int_distribution<int> dist(min, max);
         return dist(rng);
     }
-    
+
+    // Generate a random double between min and max (inclusive)
     double getRandomDouble(double min, double max) {
         std::uniform_real_distribution<double> dist(min, max);
         return dist(rng);

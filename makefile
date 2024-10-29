@@ -6,7 +6,7 @@ CXXFLAGS = -fopenmp -Wall -Werror -O3
 DEBUGFLAGS = -Wall -Werror -g -fopenmp  # Flags for debugging
 
 # Target executable
-TARGET = main
+TARGET = main_4cl
 
 # Source files
 SRCS = main.cpp
@@ -24,7 +24,7 @@ $(TARGET): $(OBJS)
 # Rule to build the executable with debugging information
 debug: CXXFLAGS = $(DEBUGFLAGS)
 debug: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) 
 
 # Rule to compile source files into object files
 %.o: %.cpp $(HEADERS)
@@ -36,4 +36,4 @@ clean:
 
 # Rule to build and run the program
 run: $(TARGET)
-	./$(TARGET)
+	./$(TARGET) $(ARGS)
