@@ -36,4 +36,4 @@ clean:
 
 # Rule to build and run the program
 run: $(TARGET)
-	./$(TARGET) $(GRAPHS_RUNS) $(OVERLAPS)
+	./$(TARGET) $(FILENAME) $(GRAPHS_RUNS) $(OVERLAPS)

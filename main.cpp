@@ -58,26 +58,28 @@ int main(int argc, char * argv[]) {
 
     auto startTime = time(NULL);
 
-    string filename = "clusters/test_auto";
+    //string filename = "clusters/test_auto";
 
     int n = 5000;
 
     vector<int> overlaps {0};
 
-    if (argc <= 3) {
-        cerr << "Not enough arguments! Usage: ./main Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
+    if (argc <= 4) {
+        cerr << "Not enough arguments! Usage: ./main OutputFile Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
         return -1;
     }
 
-    if (stoi(argv[1]) < 1 || stoi(argv[2]) < 1) {
+    string filename = argv[1];
+
+    if (stoi(argv[2]) < 1 || stoi(argv[3]) < 1) {
         cerr << "Graphs and Runs must be >= 1!" << endl;
         return -1;
     }
 
-    int graphs = stoi(argv[1]);
-    int runs = stoi(argv[2]);
+    int graphs = stoi(argv[2]);
+    int runs = stoi(argv[3]);
 
-    for (int i = 3; i < argc; i++) {
+    for (int i = 4; i < argc; i++) {
         overlaps.push_back(stoi(argv[i]));
     }
 
