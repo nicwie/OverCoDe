@@ -1,17 +1,16 @@
 #!/bin/bash
 
-rm -f sum_results/result
-touch sum_results/result
+# rm -f sum_results/result_50_25_12
+# touch sum_results/result_50_25_12
 
-for i in {1..12}
+for i in {1..50}
 do
 	for j in {1..25}
 	do
-		for k in {1..50}
+		for k in {1..12}
 		do
-			make run ARGS="$k $j $i"
-			python3 count_error.py clusters/test_auto 5 5 5000 $k $j $i \-m >> sum_results/result
-			"\n\n" >> sum_results/result
+			make run ARGS="$i $j $k"
+			python3 count_error.py clusters/test_auto 3 3 5000 $i $j $k \-m | tee -a sum_results/result_50_25_12
 		done
 	done
 done

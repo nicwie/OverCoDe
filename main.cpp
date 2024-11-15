@@ -9,7 +9,7 @@
 #include <numeric>
 #include "OverCoDe.h"
 #include "ClusteredGraph.h"
-#include "DistributedProcess.h"
+//#include "DistributedProcess.h"
 
 
 
@@ -64,14 +64,36 @@ int main(int argc, char * argv[]) {
 
     vector<int> overlaps {0};
 
-    if (argc <= 1) {
-        cerr << "Not enough arguments! Usage: ./main overlapSize [overlapSize [overlapSize ...]]";
+    if (argc <= 3) {
+        cerr << "Not enough arguments! Usage: ./main Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
         return -1;
     }
 
-    for (int i = 1; i < argc; i++) {
+    if (stoi(argv[1]) < 1 || stoi(argv[2]) < 1) {
+        cerr << "Graphs and Runs must be >= 1!" << endl;
+        return -1;
+    }
+
+    int graphs = stoi(argv[1]);
+    int runs = stoi(argv[2]);
+
+    for (int i = 3; i < argc; i++) {
         overlaps.push_back(stoi(argv[i]));
     }
+
+    cout << "Running with " << graphs << " graphs and " << runs << " runs, with overlaps:" <<endl;
+    bool first = true;
+    for (int overlap : overlaps) {
+        // this is done so that we do not print the overlap at overlaps[0], which is always 0
+        // overlaps[0] is zero because we only calculate the size of the cluster without
+        // its overlaps in ClusteredGraph.h
+        if (first) {
+            first = false;
+            continue;
+        }
+        cout << overlap << " ";
+    }
+    cout << endl;
 
 
 
@@ -82,7 +104,7 @@ int main(int argc, char * argv[]) {
     int l = T; // Number of iterations
 
     double alpha_1 = 0.9; // Threshold value, similarity (0.9)
-    double alpha_2 = 0.92; // Majority history threshold (0.9 | 0.92)
+    double alpha_2 = 0.92; // Majority (history) threshold (0.9 | 0.92)
 
     ofstream a;
     a.open(filename); // done to delete file contents if file already exists
@@ -90,7 +112,7 @@ int main(int argc, char * argv[]) {
 
     cout << "Before graph" << endl;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < graphs; i++) {
         ClusteredGraph* graph = new ClusteredGraph(n, overlaps);
 
         // vector<vector<int>> adjList = readGraphFromFile("email-Eu-core.txt");
@@ -98,7 +120,7 @@ int main(int argc, char * argv[]) {
 
 
 
-        for (int j = 0; j < 5; j++) {
+        for (int j = 0; j < runs; j++) {
             cout << "[" << i << "]" << "[" << j << "]" << endl;
 
             OverCoDe* ocd = new OverCoDe(graph->getAdjList(), T, k, rho, l, alpha_1, alpha_2);
@@ -127,7 +149,7 @@ int main(int argc, char * argv[]) {
             }
             f << endl << endl;
             f.close();
-            ocd->printClusters();
+            // ocd->printClusters();
             cout << c << " clusters." << endl;
             //ocd->printHistoryToFile(filename + "_signatures");
             delete ocd;

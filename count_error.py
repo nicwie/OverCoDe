@@ -262,6 +262,12 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 			file.write(f"Has {notClustered} / {graphs * runs} not clustered.\n")
 		
 		if args.m:
+			overlapSizes = ""
+			for x in range(1, nrClusters+1):
+				overlapSizes += str(overlapRatio[x])
+				if x != (nrClusters + 1):
+					overlapSizes += "/"
+			print(overlapSizes)
 			print(f"{graphs}x{runs}")
 			for x in range(1, nrClusters+1):
 				print(f"{x}:{totalOverlap[x]}/{(overlapRatio[x] * comb(nrClusters, x)) * numGraphs}={totalOverlap[x] / ((overlapRatio[x] * comb(nrClusters, x)) * numGraphs)}")

@@ -13,12 +13,18 @@
 #include <functional>
 #include <stdlib.h>
 #include <time.h>
-#include "DistributedProcess.h"
+//#include "DistributedProcess.h"
+#include "RandomGenerator.h"
 #include <omp.h>
+#include <thread>
+#include <future>
+#include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
 
 
 using namespace std;
 
+// Define the types of tokens
+enum Token { R, B };
 
 class OverCoDe {
 private:
@@ -28,8 +34,11 @@ private:
     time_t startTime, elapsedTime;
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
+    RandomGenerator rng;
 
-    struct vectorHash {
+    int maxThreads = thread::hardware_concurrency(); // this is 16 (on my machine)
+
+    struct vectorHash {                             // this seems to not be comaptible with c++11 in some way
     size_t operator()(const vector<int>& v) const {
         size_t seed = v.size();
         for(auto& i : v) {
@@ -38,6 +47,67 @@ private:
         return seed;
     }
     };
+
+
+
+
+    // Function to randomly initialize the tokens
+    Token randomToken() {
+        return ((Token)rng.getRandomInt(0,1));
+    }
+
+    // Function to sample k neighbors from a set of neighbors N(u)
+    vector<int> sample(int num, const vector<int>& neighbors) {
+        vector<int> sampled;
+        if (neighbors.size() == 0) {
+            return sampled;
+        }
+        for (int i = 0; i < num ; i++) {
+            sampled.push_back(neighbors[rng.getRandomInt(0, (int)neighbors.size() - 1)]);
+        }
+        return sampled;
+    }
+
+    // Function to execute the distributed process
+    vector<vector<Token>> distributedProcess(vector<vector<int>>& graph, int T, int k, int rho) {
+        int n = (int)graph.size();
+        vector<unordered_map<Token, int>> receivedToken;
+        receivedToken.resize(n);
+        vector<vector<Token>> X;
+        X.resize(n, vector<Token> (T+1));
+
+        // Random Initialization
+        for (int u = 0; u < n; u++) {
+            X[u][0] = (randomToken());
+        }
+
+        // Symmetry Breaking
+        for (int u = 0; u < n; u++) {
+            vector<int> M = sample(k, graph[u]);
+            for (int v : M) {
+                ++receivedToken[v][X[u][0]];
+            }
+        }
+
+        for (int u = 0; u < n; u++) {
+            // Save the most common state to matrix; if equal, randomize state
+            X[u][1] = ((receivedToken[u][R] > receivedToken[u][B]) ? R : (receivedToken[u][R] < receivedToken[u][B]) ? B : randomToken());
+        }
+
+        // ρ-Majority process
+        for (int t = 2; t <= T; t++) {
+            for (int u = 0; u < n; u++) {
+                vector<int> v_sampled = sample(rho, G[u]);
+                int countB = 0;
+                int countR = 0;
+                for (int v : v_sampled) {
+                    (X[v][t-1] == R) ? countR++ : countB++;
+                }
+                X[u][t] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
+            }
+        }
+        return X;
+    }
 
     /**
      * goal: if we have
@@ -86,7 +156,7 @@ private:
 
 public:
     OverCoDe(vector<vector<int>> adjList, int rounds, int pushes, int majoritySamples, int L, double alpha1, double alpha2)
-        : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), alpha1(alpha1), alpha2(alpha2) {
+        : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), alpha1(alpha1), alpha2(alpha2), rng() {
         si.resize(G.size());
         C.resize(G.size());
     }
@@ -96,18 +166,38 @@ public:
         startTime = time(NULL);
 
         // Generate Signatures
-        // this loop provides a vector which has the most common result for every node in each iteration
-        for (int i = 1; i <= ell; ++i) {
-            DistributedProcess* dp = new DistributedProcess(G, T, k, rho);
-            dp->runProcess();
-            // cout << i << " of " << ell << endl;
-            // dp->printResults();
-            const vector<vector<Token>>& X = dp->getResult();
-            // Count if a state appers more often than alpha2 * T
+        // this provides a vector which has the most common result for every node in each iteration
+        si.resize(G.size(), vector<int> (ell));
+
+        // Stores vector of promises for the result of dp
+        vector<future<vector<vector<Token>>>> threads(ell);
+
+        counting_semaphore<> semaphore(maxThreads);
+
+        // creates threads
+        for (int i = 0; i < ell; i++) {
+            semaphore.acquire();
+
+            // lambda that releases the semaphore after it dp finishes
+            threads[i] = async(launch::async, [this, &semaphore]() {
+                auto result = distributedProcess(this->G, this->T, this->k, this->rho);
+                semaphore.release();
+                return result;
+            });
+        }
+
+        // waits for all threads to finish
+        vector<vector<vector<Token>>> X(ell + 1);
+        for (int i = 0; i < ell; i++) {
+             X[i] = threads[i].get();
+        }
+
+        // Count if a state appers more often than alpha2 * T
+        for (int i = 0; i < ell; i++) {
             for (int u = 0; u < (int)G.size(); ++u) {
                 int countR = 0, countB = 0;
-                for (int t = 0; t < (int)X[u].size(); t++) {
-                    (X[u][t] == R) ? countR++ : countB++;
+                for (int t = 0; t < (int)X[i][u].size(); t++) {
+                    (X[i][u][t] == R) ? countR++ : countB++;
                 }
 
                 if (countR >= alpha2 * T) {
@@ -118,8 +208,8 @@ public:
                     si[u].push_back(-1); // Assume -1 indicates uncertainty
                 }
             }
-            delete dp;
         }
+
 
         cout << "Done generating signatures" << endl;
 

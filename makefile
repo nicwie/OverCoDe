@@ -2,8 +2,8 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -fopenmp -Wall -Werror -O3
-DEBUGFLAGS = -Wall -Werror -g -fopenmp  # Flags for debugging
+CXXFLAGS = -Wall -Werror -O3 -std=c++20
+DEBUGFLAGS = -Wall -Werror -g -std=c++20 # Flags for debugging
 
 # Target executable
 TARGET = main_4cl
@@ -36,4 +36,4 @@ clean:
 
 # Rule to build and run the program
 run: $(TARGET)
-	./$(TARGET) $(ARGS)
+	./$(TARGET) $(GRAPHS_RUNS) $(OVERLAPS)
