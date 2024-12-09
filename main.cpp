@@ -54,7 +54,8 @@ int main(int argc, char * argv[]) {
 
     auto startTime = time(nullptr);
 
-    int n = 5000;
+    int n = 0;
+    // int n = 5000;
     // int n = 125; // For ego graph
     // ReSharper disable once CppTooWideScope
     double beta;
@@ -64,13 +65,14 @@ int main(int argc, char * argv[]) {
     double alpha;
     // alpha = 0.92; // Majority (history) threshold (0.9 | 0.92)
 
-    double p = pow(static_cast<double>(n), 0.75) / n;
-    int T = static_cast<int>(10 * log2(n));   // Number of rounds
-    //int T = static_cast<int>(50 * log2(n)); // For ego graph
-    int k = static_cast<int>(log2(n) / p);   // Number of pushes
+    int T = 0;
+    // int T = static_cast<int>(10 * log2(n));   // Number of rounds
+    // int T = static_cast<int>(50 * log2(n)); // For ego graph
+    int k = 0;   // Number of pushes
     // ReSharper disable once CppTooWideScope
     int rho = 3; // Number of majority samples
-    int l = T; // Number of iterations
+    int l = 0;
+    // int l = T; // Number of iterations
     // int l = static_cast<int>(250 * log2(n)); // For ego graph
 
     bool isEgoGraph = false;
@@ -80,6 +82,7 @@ int main(int argc, char * argv[]) {
 
 
     try {
+        double p = 0;
         if (argc < 7) {
             cerr << "Not enough arguments! Usage: ./main <Is ego Graph?: true | false> alpha beta OutputFile Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
             return -1;
@@ -109,6 +112,11 @@ int main(int argc, char * argv[]) {
             }
 
             isEgoGraph = true;
+            n = 125;
+            T = static_cast<int>(50 * log2(n));
+            l = static_cast<int>(250 * log2(n));
+            p = pow(static_cast<double>(n), 0.75) / n;
+            k = static_cast<int>(log2(n) / p);
 
         } else if (static_cast<string>(argv[1]) == "false"){
             if (argc <= 7) {
@@ -120,6 +128,11 @@ int main(int argc, char * argv[]) {
                 overlaps.push_back(stoull(argv[i]));
             }
             isEgoGraph = false;
+            n = 5000;
+            T = static_cast<int>(10 * log2(n));
+            l = T;
+            p = pow(static_cast<double>(n), 0.75) / n;
+            k = static_cast<int>(log2(n) / p);
         }
 
     } catch([[maybe_unused]] exception &e) {

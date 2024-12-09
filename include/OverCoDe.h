@@ -14,6 +14,8 @@
 //#include "DistributedProcess.h"
 #include "RandomGenerator.h"
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <future>
 // #include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
 
@@ -32,6 +34,29 @@ namespace std {
     };
 }
 
+
+class Semaphore {
+    private:
+        mutex mtx;
+        condition_variable cv;
+        int count;
+
+    public:
+        explicit Semaphore(const int maxThreads) : mtx(), count(maxThreads) {}
+
+    void acquire() {
+            unique_lock<mutex> lock(mtx);
+            cv.wait(lock, [this]() { return count > 0; });
+            count--;
+        }
+
+    void release() {
+            unique_lock<mutex> lock(mtx);
+            count++;
+            cv.notify_one();
+        }
+};
+
 class OverCoDe {
 private:
     vector<vector<unsigned long long>> G;
@@ -44,7 +69,7 @@ private:
 
     //int maxThreads = thread::hardware_concurrency(); // this is 16 (on my machine)
 
-    int maxThreads = 12;
+    int maxThreads = 16;
 
     struct vectorHash {                             // this seems to not be compatible with c++11 in some way
     size_t operator()(const vector<int>& v) const {
@@ -179,11 +204,11 @@ public:
 
 
 
-        /*
+
         // Stores vector of promises for the result of dp
         vector<future<vector<vector<Token>>>> threads(ell);
 
-        counting_semaphore<> semaphore(maxThreads);
+        Semaphore semaphore(maxThreads);
 
         // creates threads
         for (int i = 0; i < ell; i++) {
@@ -203,29 +228,29 @@ public:
              X[i] = threads[i].get();
         }
 
-        // Count if a state appears more often than alpha2 * T
+        // Count if a state appears more often than alpha * T
         for (int i = 0; i < ell; i++) {
-            for (int u = 0; u < (int)G.size(); ++u) {
+            for (int u = 0; u < static_cast<int>(G.size()); ++u) {
                 int countR = 0, countB = 0;
-                for (int t = 0; t < (int)X[i][u].size(); t++) {
-                    (X[i][u][t] == R) ? countR++ : countB++;
+                for (const auto & t : X[i][u]) {
+                    (t == R) ? countR++ : countB++;
                 }
 
-                if (countR >= alpha2 * T) {
+                if (countR >= alpha * T) {
                     si[u].push_back(R);
-                } else if (countB >= alpha2 * T) {
+                } else if (countB >= alpha * T) {
                     si[u].push_back(B);
                 } else {
                     si[u].push_back(-1); // Assume -1 indicates uncertainty
                 }
             }
         }
-        */
 
+/*
         for (int i = 1; i <= ell; ++i) {
 
             const vector<vector<Token>>& X = distributedProcess(G, T, k, rho);
-            // Count if a state appears more often than alpha2 * T
+            // Count if a state appears more often than alpha * T
             for (int u = 0; u < static_cast<int>(G.size()); ++u) {
                 int countR = 0, countB = 0;
                 for (const auto t : X[u]) {
@@ -241,6 +266,7 @@ public:
                 }
             }
         }
+*/
 
 
         cout << "Done generating signatures" << endl;

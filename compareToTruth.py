@@ -84,6 +84,7 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
     Print the results and save them to a file, updated to handle graph IDs.
 
     Args:
+        :param correctly_clustered: The amount of graphs that were clustered correctly (all clusters were matched)
         :param jaccard_summary_data: A dictionary of overlaps and their average jaccard scores with standard deviations.
         :param results: List of dictionaries with 'graph_id', 'cluster_index', 'truth_index',
                  'extra_nodes', and 'missing_nodes' keys.
@@ -114,18 +115,18 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
             total_extra_nodes += len(extra_nodes)
             total_missing_nodes += len(missing_nodes)
             total_truth_size += len(truth_size)
-
-            comparison_result = (
-                f"Graph ID: {graph_id}\n"
-                f"Cluster Index: {cluster_idx if cluster_idx is not None else 'Unmatched'}\n"
-                f"Truth Index: {truth_idx if truth_idx is not None else 'Unmatched'}\n"
-                f"Extra Nodes: {extra_nodes}\n"
-                f"Missing Nodes: {missing_nodes}\n"
-                f"Size: {len(truth_size)}\n"
-                "----------------------------------------\n"
-            )
-            print(comparison_result)
-            file.write(comparison_result)
+            if not minimal:
+                comparison_result = (
+                    f"Graph ID: {graph_id}\n"
+                    f"Cluster Index: {cluster_idx if cluster_idx is not None else 'Unmatched'}\n"
+                    f"Truth Index: {truth_idx if truth_idx is not None else 'Unmatched'}\n"
+                    f"Extra Nodes: {extra_nodes}\n"
+                    f"Missing Nodes: {missing_nodes}\n"
+                    f"Size: {len(truth_size)}\n"
+                    "----------------------------------------\n"
+                )
+                print(comparison_result)
+                file.write(comparison_result)
         # Sum results
         summary = (
             f"\nSummary of Results:\n"
@@ -469,7 +470,7 @@ def match_clusters_jaccard(clusters, truth):
 
     return matched_clusters, matched_truth
 
-def compare_files(clusters_file, truth_file, graphs, runs, name):
+def compare_files(clusters_file, truth_file, graphs, runs, name, minimal):
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     filename = f"errors/graph_errors_{timestamp}_{graphs}x{runs}{name}.txt"
 
@@ -480,7 +481,7 @@ def compare_files(clusters_file, truth_file, graphs, runs, name):
     matched_clusters, matched_truth = match_clusters_jaccard(clusters_file, truth_file)
     matched_node_list = transform_clusters(matched_clusters, matched_truth)
     avg_jaccard = compute_jaccard_and_average(matched_node_list)
-    display_and_save_results(results, avg_jaccard, correctly_clustered,  filename)
+    display_and_save_results(results, avg_jaccard, correctly_clustered, filename, minimal)
 
 
 
@@ -495,7 +496,7 @@ def main():
     args = parser.parse_args()
     clusters = read_cluster_file(args.inputFile)
     truth = read_truth(args.truthFile)
-    compare_files(clusters, truth, args.graphs, args.runs, args.name)
+    compare_files(clusters, truth, args.graphs, args.runs, args.name, args.m)
 
 if __name__ == "__main__":
     main()
