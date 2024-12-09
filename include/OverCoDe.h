@@ -23,12 +23,14 @@ using namespace std;
 // Define the types of tokens
 enum Token { R, B };
 
-template <>
-    struct hash<Token> {
-    size_t operator()(const Token& token) const noexcept {
-        return static_cast<size_t>(token);
-    }
-};
+namespace std {
+    template <>
+        struct hash<Token> {
+        size_t operator()(const Token& token) const noexcept {
+            return static_cast<size_t>(token);
+        }
+    };
+}
 
 class OverCoDe {
 private:
