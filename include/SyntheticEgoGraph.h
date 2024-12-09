@@ -125,7 +125,7 @@ class SyntheticEgoGraph final : public Graph {
         }
     }
 
-    [[nodiscard]] vector<vector<unsigned long long>> getClusters() const {
+    vector<vector<unsigned long long>> getClusters() const {
         return clusters;
     }
 

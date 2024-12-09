@@ -13,7 +13,7 @@ class Graph
 
         virtual void generateGraph() = 0;
 
-        [[nodiscard]] const std::vector<std::vector<unsigned long long>>& getAdjList() const {
+        const std::vector<std::vector<unsigned long long>>& getAdjList() const {
             return adjList;
         }
 

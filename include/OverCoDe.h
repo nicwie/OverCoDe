@@ -15,7 +15,7 @@
 #include "RandomGenerator.h"
 #include <thread>
 #include <future>
-#include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
+// #include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
 
 
 using namespace std;
@@ -264,7 +264,7 @@ public:
         elapsedTime = time(nullptr) - startTime; // used in printClustersToFile
     }
 
-    [[nodiscard]] const vector<vector<vector<int>>>& getResults() const {
+    const vector<vector<vector<int>>>& getResults() const {
         return C;
     }
 
@@ -302,7 +302,7 @@ public:
         cout << "history written" << endl;
     }
 
-    [[nodiscard]] unordered_map<vector<int>, unordered_set<int>, vectorHash> getClusters() const {
+    unordered_map<vector<int>, unordered_set<int>, vectorHash> getClusters() const {
         unordered_map<vector<int>, unordered_set<int>, vectorHash> clusters;
         for (int i = 0; i < static_cast<int>(C.size()); i++) {
             for (int j = 0; j < static_cast<int>(C[i].size()); j++) {
