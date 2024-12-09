@@ -2,11 +2,11 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -Werror -O3 -std=c++20
-DEBUGFLAGS = -Wall -Werror -g -std=c++20 # Flags for debugging
+CXXFLAGS = -Wall -Werror -O3 -std=c++11
+DEBUGFLAGS = -Wall -Werror -g -std=c++11 # Flags for debugging
 
 # Target executable
-TARGET = main_4cl
+TARGET = main
 
 # Source files
 SRCS = main.cpp
@@ -36,4 +36,4 @@ clean:
 
 # Rule to build and run the program
 run: $(TARGET)
-	./$(TARGET) $(FILENAME) $(GRAPHS_RUNS) $(OVERLAPS)
+	./$(TARGET) $(EGOGRAPH) $(ALPHA_BETA) $(FILENAME) $(GRAPHS_RUNS) $(OVERLAPS)

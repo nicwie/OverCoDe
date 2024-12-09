@@ -1,4 +1,3 @@
-import sys
 import time
 import argparse
 from math import comb
@@ -67,7 +66,7 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 	nExclusive = clusterSize
 	
 	unusedNodes = []
-	totalUnusedNodes = 0;
+	totalUnusedNodes = 0
 	
 	for k in range(2, nrClusters + 1):
 		nExclusive -= overlapRatio[k] * comb(nrClusters - 1, k - 1) #nodes that only appear in 1 graph

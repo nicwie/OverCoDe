@@ -4,18 +4,15 @@
 
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
-#include <numeric>
 #include <cmath>
-#include <functional>
-#include <stdlib.h>
-#include <time.h>
+#include <ctime>
 //#include "DistributedProcess.h"
 #include "RandomGenerator.h"
-#include <omp.h>
 #include <thread>
 #include <future>
 #include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
@@ -28,17 +25,19 @@ enum Token { R, B };
 
 class OverCoDe {
 private:
-	vector<vector<int>> G;
+    vector<vector<unsigned long long>> G;
     int T, k, rho, ell;
-    double alpha1, alpha2;
-    time_t startTime, elapsedTime;
+    double beta, alpha;
+    time_t startTime{}, elapsedTime{};
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
     RandomGenerator rng;
 
-    int maxThreads = thread::hardware_concurrency(); // this is 16 (on my machine)
+    //int maxThreads = thread::hardware_concurrency(); // this is 16 (on my machine)
 
-    struct vectorHash {                             // this seems to not be comaptible with c++11 in some way
+    int maxThreads = 12;
+
+    struct vectorHash {                             // this seems to not be compatible with c++11 in some way
     size_t operator()(const vector<int>& v) const {
         size_t seed = v.size();
         for(auto& i : v) {
@@ -53,24 +52,24 @@ private:
 
     // Function to randomly initialize the tokens
     Token randomToken() {
-        return ((Token)rng.getRandomInt(0,1));
+        return static_cast<Token>(rng.getRandomInt(0, 1));
     }
 
     // Function to sample k neighbors from a set of neighbors N(u)
-    vector<int> sample(int num, const vector<int>& neighbors) {
-        vector<int> sampled;
-        if (neighbors.size() == 0) {
+    vector<unsigned long long> sample(const int num, const vector<unsigned long long>& neighbors) {
+        vector<unsigned long long> sampled;
+        if (neighbors.empty()) {
             return sampled;
         }
         for (int i = 0; i < num ; i++) {
-            sampled.push_back(neighbors[rng.getRandomInt(0, (int)neighbors.size() - 1)]);
+            sampled.push_back(neighbors[rng.getRandomInt(0, static_cast<int>(neighbors.size()) - 1)]);
         }
         return sampled;
     }
 
     // Function to execute the distributed process
-    vector<vector<Token>> distributedProcess(vector<vector<int>>& graph, int T, int k, int rho) {
-        int n = (int)graph.size();
+    vector<vector<Token>> distributedProcess(const vector<vector<unsigned long long>> &graph, const int T, const int k, const int rho) {
+        const int n = static_cast<int>(graph.size());
         vector<unordered_map<Token, int>> receivedToken;
         receivedToken.resize(n);
         vector<vector<Token>> X;
@@ -83,8 +82,8 @@ private:
 
         // Symmetry Breaking
         for (int u = 0; u < n; u++) {
-            vector<int> M = sample(k, graph[u]);
-            for (int v : M) {
+            vector<unsigned long long> M = sample(k, graph[u]);
+            for (const unsigned long long v : M) {
                 ++receivedToken[v][X[u][0]];
             }
         }
@@ -97,10 +96,10 @@ private:
         // ρ-Majority process
         for (int t = 2; t <= T; t++) {
             for (int u = 0; u < n; u++) {
-                vector<int> v_sampled = sample(rho, G[u]);
+                vector<unsigned long long> v_sampled = sample(rho, G[u]);
                 int countB = 0;
                 int countR = 0;
-                for (int v : v_sampled) {
+                for (const unsigned long long v : v_sampled) {
                     (X[v][t-1] == R) ? countR++ : countB++;
                 }
                 X[u][t] = ((countR > countB) ? R : (countR < countB) ? B : randomToken());
@@ -117,10 +116,10 @@ private:
      * we would get (3 / 7)
      * @return Similarity between signatures
      */
-    double similarity(const vector<int>& a, const vector<int>& b) {
+    static double similarity(const vector<int>& a, const vector<int>& b) {
         int common = 0, validIndices = 0;
 
-        for (int i = 0; i < (int)min(a.size(), b.size()); i++) {
+        for (int i = 0; i < static_cast<int>(min(a.size(), b.size())); i++) {
             if (a[i] != -1 && b[i] != -1) {  // Ensure both indices are valid
                 validIndices++;
                 if (a[i] == b[i]) {
@@ -133,10 +132,10 @@ private:
             return 0.0;  // Avoid division by zero if there are no valid indices
         }
 
-        return (double)common / validIndices;  // Ratio of matching valid states
+        return static_cast<double>(common) / validIndices;  // Ratio of matching valid states
     }
 
-    vector<vector<int>> clustersIDs (vector<vector<int>>& S, double alpha) {
+    static vector<vector<int>> clustersIDs (vector<vector<int>>& S, const double alpha) {
         vector<vector<int>> signatures;
         for (const auto& signatureV : S) {
             bool isUnique = true;
@@ -155,20 +154,23 @@ private:
 
 
 public:
-    OverCoDe(vector<vector<int>> adjList, int rounds, int pushes, int majoritySamples, int L, double alpha1, double alpha2)
-        : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), alpha1(alpha1), alpha2(alpha2), rng() {
+    OverCoDe(const vector<vector<unsigned long long>>& adjList, const int rounds, const int pushes, const int majoritySamples, const int L, const double beta, const double alpha)
+        : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L), beta(beta), alpha(alpha) {
         si.resize(G.size());
         C.resize(G.size());
     }
 
     void runOverCoDe() {
 
-        startTime = time(NULL);
+        startTime = time(nullptr);
 
         // Generate Signatures
         // this provides a vector which has the most common result for every node in each iteration
         si.resize(G.size(), vector<int> (ell));
 
+
+
+        /*
         // Stores vector of promises for the result of dp
         vector<future<vector<vector<Token>>>> threads(ell);
 
@@ -192,7 +194,7 @@ public:
              X[i] = threads[i].get();
         }
 
-        // Count if a state appers more often than alpha2 * T
+        // Count if a state appears more often than alpha2 * T
         for (int i = 0; i < ell; i++) {
             for (int u = 0; u < (int)G.size(); ++u) {
                 int countR = 0, countB = 0;
@@ -209,6 +211,27 @@ public:
                 }
             }
         }
+        */
+
+        for (int i = 1; i <= ell; ++i) {
+
+            const vector<vector<Token>>& X = distributedProcess(G, T, k, rho);
+            // Count if a state appears more often than alpha2 * T
+            for (int u = 0; u < static_cast<int>(G.size()); ++u) {
+                int countR = 0, countB = 0;
+                for (const auto t : X[u]) {
+                    (t == R) ? countR++ : countB++;
+                }
+
+                if (countR >= alpha * T) {
+                    si[u].push_back(R);
+                } else if (countB >= alpha * T) {
+                    si[u].push_back(B);
+                } else {
+                    si[u].push_back(-1); // Assume -1 indicates uncertainty
+                }
+            }
+        }
 
 
         cout << "Done generating signatures" << endl;
@@ -217,40 +240,40 @@ public:
         vector<vector<int>> sharedMemory(G.size());
 
         // Identify Clusters
-        for (int u = 0; u < (int)G.size(); ++u) {
+        for (int u = 0; u < static_cast<int>(G.size()); ++u) {
             //if (bernoulli(log((double)G.size()) / (double)G.size())) {
-                if (count_if(si[u].begin(), si[u].end(), [](int x) {return x != -1; }) >= alpha1 * ell) {
+                if (static_cast<double>(count_if(si[u].begin(), si[u].end(), [](const int x) {return x != -1; })) >= beta * ell) {
                     sharedMemory[u] =  si[u];
                 }
             //}
         }
 
-        vector<vector<int>> signatures = clustersIDs(sharedMemory, alpha1);
+        vector<vector<int>> signatures = clustersIDs(sharedMemory, beta);
 
         cout << "Got Pure Signatures" << endl;
         // #pragma omp parallel for
-        for (int u = 0; u < (int)G.size(); ++u) {
-            for (vector<int> signature : signatures) {
-                if (similarity(si[u], signature) >= alpha1) {
+        for (int u = 0; u < static_cast<int>(G.size()); ++u) {
+            for (const vector<int>& signature : signatures) {
+                if (similarity(si[u], signature) >= beta) {
                     // #pragma omp critical
                     C[u].push_back(signature);
                 }
             }
         }
 
-        elapsedTime = time(NULL) - startTime; // used in printClustersToFile
+        elapsedTime = time(nullptr) - startTime; // used in printClustersToFile
     }
 
-    const vector<vector<vector<int>>>& getResults() const {
+    [[nodiscard]] const vector<vector<vector<int>>>& getResults() const {
         return C;
     }
 
-    void printResults() {
-        for (int i = 0; i < (int)C.size(); i++) {
+    void printResults() const {
+        for (int i = 0; i < static_cast<int>(C.size()); i++) {
             cout << "Clusters node " << i << " is in: " << endl;
-            for (int j = 0; j < (int)C[i].size(); j++) {
-                for (int x = 0; x < (int)C[i][j].size(); x++) {
-                    cout << C[i][j][x] << " ";
+            for (const auto & j : C[i]) {
+                for (const int x : j) {
+                    cout << x << " ";
                 }
                 cout << " / ";
             }
@@ -258,7 +281,7 @@ public:
         }
     }
 
-    void printHistoryToFile(string filename) {
+    void printHistoryToFile(const string& filename) {
         ofstream c;
         c.open(filename);
         int i = 0;
@@ -279,18 +302,18 @@ public:
         cout << "history written" << endl;
     }
 
-    unordered_map<vector<int>, unordered_set<int>, vectorHash> getClusters() {
+    [[nodiscard]] unordered_map<vector<int>, unordered_set<int>, vectorHash> getClusters() const {
         unordered_map<vector<int>, unordered_set<int>, vectorHash> clusters;
-        for (int i = 0; i < (int)C.size(); i++) {
-            for (int j = 0; j < (int)C[i].size(); j++) {
+        for (int i = 0; i < static_cast<int>(C.size()); i++) {
+            for (int j = 0; j < static_cast<int>(C[i].size()); j++) {
                 clusters[C[i][j]].insert(i);
             }
         }
         return clusters;
     }
 
-    void printClusters() {
-        auto clusters = getClusters();
+    void printClusters() const {
+        const auto clusters = getClusters();
         int i = 0;
         for (const auto& pair : clusters) {
             cout << "Cluster "  << ++i << ": ";
@@ -305,18 +328,20 @@ public:
         }
     }
 
-    void printClustersToFile(string name) {
+    void printClustersToFile(const string& name) const {
         ofstream f;
         f.open(name);
         int i = 0;
-        auto clusters = getClusters();
-        for (const auto& pair : clusters) {
+        const auto clusters = getClusters();
+        // Cannot use structured bindings here with c++11
+        // ReSharper disable once CppUseStructuredBinding
+        for (const auto& cluster : clusters) {
             f << "Cluster " << ++i << ": ";
-            for (int num : pair.first) {
+            for (const int num : cluster.first) {
                 f << num << " ";
             }
             f << endl << "Nodes: ";
-            for (int num : pair.second) {
+            for (const int num : cluster.second) {
                 f << num << " ";
             }
             f << endl;

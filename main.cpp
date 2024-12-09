@@ -3,44 +3,40 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
 #include <random>
 #include <string>
-#include <algorithm>
-#include <numeric>
-#include "OverCoDe.h"
-#include "ClusteredGraph.h"
+#include "include/OverCoDe.h"
+#include "include/ClusteredGraph.h"
+#include "include/SyntheticEgoGraph.h"
+#include "include/Graph.h"
+
 //#include "DistributedProcess.h"
 
 
 
 using namespace std;
 
-    bool contains (vector<int> g, int n) {
-        for (int x : g) {
-            if (x == n) {
-                return true;
-            }
-        }
-        return false;
+    bool contains (const vector<int>& g, const int n) {
+        return any_of(g.begin(), g.end(), [&n](const int i) { return i == n; });
     }
 
-    vector<vector<int>> readGraphFromFile(string filename) {
+    vector<vector<int>> readGraphFromFile(const string& filename) {
 
 
         vector<vector<int>> adjList;
         ifstream a;
         a.open(filename);
         string read;
-        int node1, node2;
         while (a) {
             a >> read;
-            node1 = stoi(read);
+            int node1 = stoi(read);
             a >> read;
-            node2 = stoi(read);
-            if (node1 >= (int)adjList.size()) {
+            int node2 = stoi(read);
+            if (node1 >= static_cast<int>(adjList.size())) {
                 adjList.resize(node1 + 1);
             }
-            if (node2 >= (int)adjList.size()) {
+            if (node2 >= static_cast<int>(adjList.size())) {
                 adjList.resize(node2 + 1);
             }
 
@@ -56,66 +52,129 @@ using namespace std;
 
 int main(int argc, char * argv[]) {
 
-    auto startTime = time(NULL);
-
-    //string filename = "clusters/test_auto";
+    auto startTime = time(nullptr);
 
     int n = 5000;
+    // int n = 125; // For ego graph
+    // ReSharper disable once CppTooWideScope
+    double beta;
+    // beta = 0.95; // similarity threshold
+    // double beta = 0.85; // For ego graph
+    // ReSharper disable once CppTooWideScope
+    double alpha;
+    // alpha = 0.92; // Majority (history) threshold (0.9 | 0.92)
 
-    vector<int> overlaps {0};
-
-    if (argc <= 4) {
-        cerr << "Not enough arguments! Usage: ./main OutputFile Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
-        return -1;
-    }
-
-    string filename = argv[1];
-
-    if (stoi(argv[2]) < 1 || stoi(argv[3]) < 1) {
-        cerr << "Graphs and Runs must be >= 1!" << endl;
-        return -1;
-    }
-
-    int graphs = stoi(argv[2]);
-    int runs = stoi(argv[3]);
-
-    for (int i = 4; i < argc; i++) {
-        overlaps.push_back(stoi(argv[i]));
-    }
-
-    cout << "Running with " << graphs << " graphs and " << runs << " runs, with overlaps:" <<endl;
-    bool first = true;
-    for (int overlap : overlaps) {
-        // this is done so that we do not print the overlap at overlaps[0], which is always 0
-        // overlaps[0] is zero because we only calculate the size of the cluster without
-        // its overlaps in ClusteredGraph.h
-        if (first) {
-            first = false;
-            continue;
-        }
-        cout << overlap << " ";
-    }
-    cout << endl;
-
-
-
-    float p = pow((float) n, 0.75) / n;
-    int T = (5 * log2(n));   // Number of rounds
-    int k = (log2(n) / p);   // Number of pushes
+    double p = pow(static_cast<double>(n), 0.75) / n;
+    int T = static_cast<int>(10 * log2(n));   // Number of rounds
+    //int T = static_cast<int>(50 * log2(n)); // For ego graph
+    int k = static_cast<int>(log2(n) / p);   // Number of pushes
+    // ReSharper disable once CppTooWideScope
     int rho = 3; // Number of majority samples
     int l = T; // Number of iterations
+    // int l = static_cast<int>(250 * log2(n)); // For ego graph
 
-    double alpha_1 = 0.9; // Threshold value, similarity (0.9)
-    double alpha_2 = 0.92; // Majority (history) threshold (0.9 | 0.92)
+    bool isEgoGraph = false;
+    int graphs = 0, runs = 0;
+    string filename;
+    vector<unsigned long long> overlaps{0};
+
+
+    try {
+        if (argc < 7) {
+            cerr << "Not enough arguments! Usage: ./main <Is ego Graph?: true | false> alpha beta OutputFile Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
+            return -1;
+        }
+
+        //if (stod(argv[3]) > 1 || stod(argv[3]) <= 0 || stod(argv[4]) > 1 || stod(argv[4]) <= 0) {
+        //    cerr << "Alpha and beta must be between 1 and 0!" << endl;
+        //    return -1;
+        //}
+
+        alpha = stod(argv[2]);
+        beta = stod(argv[3]);
+
+        if (stoi(argv[5]) < 1 || stoi(argv[6]) < 1) {
+            cerr << "Graphs and Runs must be >= 1!" << endl;
+            return -1;
+        }
+
+        filename = static_cast<string>(argv[4]);
+        graphs = stoi(argv[5]);
+        runs = stoi(argv[6]);
+
+        if (static_cast<string>(argv[1]) == "true") {
+            if (argc != 7) {
+                cout << "Usage: ./main true alpha beta OutputFile Graphs Runs" << endl;
+                return -1;
+            }
+
+            isEgoGraph = true;
+
+        } else if (static_cast<string>(argv[1]) == "false"){
+            if (argc <= 7) {
+                cout << "Usage: ./main false OutputFile Graphs Runs overlapSize [overlapSize [overlapSize ...]]" << endl;
+                return -1;
+            }
+
+            for (int i = 7; i < argc; i++) {
+                overlaps.push_back(stoull(argv[i]));
+            }
+            isEgoGraph = false;
+        }
+
+    } catch([[maybe_unused]] exception &e) {
+        cout << "Oh no! " << e.what() << endl;
+        return -1;
+    }
+
+    cout << "Running with " << graphs << " graphs and " << runs << " runs." << endl;
+    if (!isEgoGraph) {
+        bool first = true;
+         cout << "Cluster Graph, with overlaps: " << endl;
+        for (unsigned long long overlap : overlaps) {
+            // this is done so that we do not print the overlap at overlaps[0], which is always 0
+            // overlaps[0] is zero because we calculate the size of the cluster without
+            // its overlaps in ClusteredGraph.h
+            if (first) {
+                first = false;
+                continue;
+            }
+            cout << overlap << " ";
+        }
+        cout << endl;
+    } else {
+        cout << "Ego graph." << endl;
+    }
+
+
+
+
 
     ofstream a;
     a.open(filename); // done to delete file contents if file already exists
     a.close();
 
+    a.open(filename + "_truth");
+    a.close();
+
     cout << "Before graph" << endl;
 
+    unique_ptr<Graph> graph;
+
+    if (isEgoGraph) {
+        // graph = make_unique<SyntheticEgoGraph>(); // only cpp14
+        // ReSharper disable once CppSmartPointerVsMakeFunction
+        graph = unique_ptr<Graph>(new SyntheticEgoGraph());
+    } else {
+        // graph = make_unique<ClusteredGraph>(n, overlaps); // only cpp14
+        // ReSharper disable once CppSmartPointerVsMakeFunction
+        graph = unique_ptr<Graph>(new ClusteredGraph(n, overlaps));
+    }
+
     for (int i = 0; i < graphs; i++) {
-        ClusteredGraph* graph = new ClusteredGraph(n, overlaps);
+        // have "graph" as abstract class and implement as cluster & ego?
+
+        graph->generateGraph();
 
         // vector<vector<int>> adjList = readGraphFromFile("email-Eu-core.txt");
         cout << "Graph created" << endl;
@@ -123,27 +182,34 @@ int main(int argc, char * argv[]) {
 
 
         for (int j = 0; j < runs; j++) {
-            cout << "[" << i << "]" << "[" << j << "]" << endl;
 
-            OverCoDe* ocd = new OverCoDe(graph->getAdjList(), T, k, rho, l, alpha_1, alpha_2);
+            cout << "[" << i << "]" << "[" << j << "]" << endl;
+            //graph->printGraph();
+            auto* ocd = new OverCoDe(graph->getAdjList(), T, k, rho, l, beta, alpha);
             //OverCoDe* ocd = new OverCoDe(adjList, T, k, rho, l, alpha_1, alpha_2);
             ocd->runOverCoDe();
 
 
             ofstream f;
-            f.open(filename, f.app);
+            f.open(filename, std::ofstream::app);
             int c = 0;
 
             f << i << " " << j << endl;
+            a.open(filename + "_truth", std::ofstream::app);
+            a << i << " " << j << endl;
+            a.close();
+            graph->appendTruthToFile(filename + "_truth");
 
             auto clusters = ocd->getClusters();
-            for (const auto& pair : clusters) {
+            // Cannot use structured bindings in cpp11
+            // ReSharper disable once CppUseStructuredBinding
+            for (const auto& cluster : clusters) {
                 f << "Cluster " << ++c << ": ";
-                for (int num : pair.first) {
+                for (int num : cluster.first) {
                     f << num << " ";
                 }
                 f << endl;
-                for (int num : pair.second) {
+                for (int num : cluster.second) {
                     f << num << " ";
                 }
                 f << endl;
@@ -156,11 +222,12 @@ int main(int argc, char * argv[]) {
             //ocd->printHistoryToFile(filename + "_signatures");
             delete ocd;
         }
-        delete graph;
+        graph->deleteGraph();
     }
 
-    auto elapsedTime = time(NULL) - startTime;
+    auto elapsedTime = time(nullptr) - startTime;
 
+    // ReSharper disable once CppRedundantParentheses
     cout << ((elapsedTime / 60) / 60) << "h " << (elapsedTime / 60) % 60 << "min " << elapsedTime % 60 <<  "s" << endl;
 
 
