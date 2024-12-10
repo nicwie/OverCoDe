@@ -9,8 +9,10 @@
 class RandomGenerator {
 public:
     RandomGenerator() {
-        const auto seed = std::chrono::system_clock::now().time_since_epoch().count();
-        rng.seed(static_cast<unsigned long>(seed));
+        //const auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+        //rng.seed(static_cast<unsigned long>(seed));
+        std::random_device rd;
+        rng = std::mt19937(rd());
     }
 
     // Generate a random integer between min and max (inclusive)
@@ -56,5 +58,6 @@ private:
     std::mt19937 rng; // Mersenne Twister 19937 generator
 };
 
+thread_local RandomGenerator rng; // global declaration for multithreading
 
 #endif // RANDOMGENERATOR_H_INCLUDED

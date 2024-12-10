@@ -2,8 +2,8 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -Werror -O3 -std=c++11
-DEBUGFLAGS = -Wall -Werror -g -std=c++11 # Flags for debugging
+CXXFLAGS = -Wall -Werror -O3 -std=c++11 -pthread
+DEBUGFLAGS = -Wall -Werror -g -std=c++11 -pthread # Flags for debugging
 
 # Target executable
 TARGET = main

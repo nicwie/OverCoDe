@@ -79,11 +79,12 @@ def read_truth(filename):
     return read_clusters
 
 
-def display_and_save_results(results, jaccard_summary_data, correctly_clustered, output_file, minimal=False):
+def display_and_save_results(results, jaccard_summary_data, correctly_clustered, general_jacc, output_file, minimal=False):
     """
     Print the results and save them to a file, updated to handle graph IDs.
 
     Args:
+        :param general_jacc: list of jaccard indices per graph (normalized to number of clusters)
         :param correctly_clustered: The amount of graphs that were clustered correctly (all clusters were matched)
         :param jaccard_summary_data: A dictionary of overlaps and their average jaccard scores with standard deviations.
         :param results: List of dictionaries with 'graph_id', 'cluster_index', 'truth_index',
@@ -133,6 +134,8 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
             f"Total Extra Nodes: {total_extra_nodes}\n"
             f"Total Missing Nodes: {total_missing_nodes}\n"
             f"Total Truth Size: {total_truth_size}\n"
+            f"Jaccard Average: { mean(general_jacc)}\n"
+            f"Jaccard Standard Deviation: {stdev(general_jacc) if len(general_jacc) > 1 else 0.0}\n"
         )
 
         num_graphs = len(results)
@@ -146,7 +149,7 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
             f"Average Truth Size per Graph: {avg_truth_size:.2f}\n"
             f"Correctly Clustered Graphs: {correctly_clustered}\n"
         )
-
+        """
         # Iterate through each cluster count and corresponding statistics
         jacc_sum = "\nJaccard Index Statistics by Total Ground Truth Clusters and Node Cluster Membership:\n"
         jacc_sum += "-" * 80 + "\n"
@@ -168,10 +171,10 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
 
         # Iterate through each cluster count and corresponding statistics
         for cluster_count, stats in sorted(jaccard_summary_data.items()):
-            mean = stats["mean"]
+            jmean = stats["mean"]
             std_dev = stats["std_dev"]
-            jacc_sum += f"{cluster_count:>14} | {mean:>13.4f} | {std_dev:>8.4f}\n"
-        """
+            jacc_sum += f"{cluster_count:>14} | {jmean:>13.4f} | {std_dev:>8.4f}\n"
+        # """
         summary += jacc_sum
 
         print(summary)
@@ -275,6 +278,7 @@ def calculate_metrics(cluster_data, truth_data):
     """
     results = []
     correctly_clustered = 0
+    general_jacc = []
 
     # Iterate over all graphs present in either clusters or truth data
     all_graphs = set(cluster_data.keys()).union(set(truth_data.keys()))
@@ -294,6 +298,14 @@ def calculate_metrics(cluster_data, truth_data):
 
         # Match clusters within this graph
         cluster_to_truth = match_clusters(overlap_matrix)
+
+        current_jacc_sum = 0
+
+
+        for i in cluster_to_truth:
+            current_jacc_sum += overlap_matrix[i[0]][i[1]]
+
+        general_jacc.append(current_jacc_sum / len(cluster_to_truth))
 
         # Compare matched clusters
         for cluster_idx, truth_idx in cluster_to_truth:
@@ -336,7 +348,7 @@ def calculate_metrics(cluster_data, truth_data):
                 "truth_size": sorted(truth_sets[truth_idx]),
             })
 
-    return results, correctly_clustered
+    return results, correctly_clustered, general_jacc
 
 
 def jaccard_similarity(set1, set2):
@@ -381,15 +393,15 @@ def compute_jaccard_and_average(results):
         to a dictionary with statistics (mean, standard deviation, median) for Jaccard indices.
     """
     # To store Jaccard indices by ground truth cluster count &  cluster count
-    grouped_jaccard_indices = defaultdict(lambda: defaultdict(list))
-    # node_jaccard_indices = defaultdict(list)
+    # grouped_jaccard_indices = defaultdict(lambda: defaultdict(list))
+    node_jaccard_indices = defaultdict(list)
     for result in results:
 
         node_clusters = result["node_clusters"]
         ground_truth_clusters = result["ground_truth_clusters"]
         # flatten sets of indices into one iterable and count unique
         total_truth_clusters = len(set(chain.from_iterable(ground_truth_clusters.values())))
-
+        """"
         all_nodes = set(node_clusters.keys()).union(ground_truth_clusters.keys())
 
         for node in all_nodes:
@@ -437,7 +449,7 @@ def compute_jaccard_and_average(results):
             "std_dev": stdev(indices) if len(indices) > 1 else 0.0,  # stdev requires at least 2 values
         }
         statistics_by_group[cluster_count] = stats
-    """
+    # """
     return statistics_by_group
 
 def match_clusters_jaccard(clusters, truth):
@@ -476,12 +488,12 @@ def compare_files(clusters_file, truth_file, graphs, runs, name, minimal):
 
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    results, correctly_clustered = calculate_metrics(clusters_file, truth_file)
+    results, correctly_clustered, general_jacc = calculate_metrics(clusters_file, truth_file)
 
     matched_clusters, matched_truth = match_clusters_jaccard(clusters_file, truth_file)
     matched_node_list = transform_clusters(matched_clusters, matched_truth)
     avg_jaccard = compute_jaccard_and_average(matched_node_list)
-    display_and_save_results(results, avg_jaccard, correctly_clustered, filename, minimal)
+    display_and_save_results(results, avg_jaccard, correctly_clustered, general_jacc, filename, minimal)
 
 
 

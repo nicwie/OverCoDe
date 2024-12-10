@@ -20,6 +20,7 @@
 // #include <semaphore> // C++20, could be replaced with a <mutex> and <condition_variable> for c++11
 
 
+
 using namespace std;
 
 // Define the types of tokens
@@ -65,7 +66,7 @@ private:
     time_t startTime{}, elapsedTime{};
     vector<vector<int>> si;
     vector<vector<vector<int>>> C;
-    RandomGenerator rng;
+
 
     //int maxThreads = thread::hardware_concurrency(); // this is 16 (on my machine)
 
@@ -85,24 +86,25 @@ private:
 
 
     // Function to randomly initialize the tokens
-    Token randomToken() {
+    static Token randomToken() {
         return static_cast<Token>(rng.getRandomInt(0, 1));
     }
 
     // Function to sample k neighbors from a set of neighbors N(u)
-    vector<unsigned long long> sample(const int num, const vector<unsigned long long>& neighbors) {
+    static vector<unsigned long long> sample(const int num, const vector<unsigned long long> &neighbors) {
         vector<unsigned long long> sampled;
         if (neighbors.empty()) {
             return sampled;
         }
         for (int i = 0; i < num ; i++) {
-            sampled.push_back(neighbors[rng.getRandomInt(0, static_cast<int>(neighbors.size()) - 1)]);
+            const int neighbor = rng.getRandomInt(0, static_cast<int>(neighbors.size()) - 1);
+            sampled.push_back(neighbors[neighbor]);
         }
         return sampled;
     }
 
     // Function to execute the distributed process
-    vector<vector<Token>> distributedProcess(const vector<vector<unsigned long long>> &graph, const int T, const int k, const int rho) {
+    vector<vector<Token>> distributedProcess(const vector<vector<unsigned long long>> &graph, const int T, const int k, const int rho) const {
         const int n = static_cast<int>(graph.size());
         vector<unordered_map<Token, int>> receivedToken;
         receivedToken.resize(n);
@@ -214,7 +216,7 @@ public:
         for (int i = 0; i < ell; i++) {
             semaphore.acquire();
 
-            // lambda that releases the semaphore after it dp finishes
+            // lambda that releases the semaphore after dp finishes
             threads[i] = async(launch::async, [this, &semaphore]() {
                 auto result = distributedProcess(this->G, this->T, this->k, this->rho);
                 semaphore.release();
