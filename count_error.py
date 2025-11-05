@@ -1,5 +1,5 @@
-import time
 import argparse
+import time
 from math import comb
 
 usage = """
@@ -262,8 +262,8 @@ def calculateMisclassifications(clusters, graphs, runs, clusterSize, overlapRati
 		
 		if args.m:
 			if (numGraphs == 0): 
-				print(f"No correctly clustered graphs!")
-				file.write(f"No correctly clustered graphs!\n")
+				print("No correctly clustered graphs!")
+				file.write("No correctly clustered graphs!\n")
 				quit()
 			overlapSizes = ""
 			for x in range(1, nrClusters+1):

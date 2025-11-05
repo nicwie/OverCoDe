@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
+
 import argparse
 import os
 import time
-from scipy.optimize import linear_sum_assignment
 from collections import defaultdict
-from statistics import mean, median, stdev
 from itertools import chain
+from statistics import mean, median, stdev
+
+from scipy.optimize import linear_sum_assignment
 
 usage = """
 usage: python3 compareToTruth <clusterFile> <truthFile> <graphs> <simulations per graph> [--name: output file note] [-m: minimal output]
@@ -17,7 +20,7 @@ def read_cluster_file(filename):
     current_graph = None
     current_clusters = []
 
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         for line in file:
 
             if len(line.strip().split()) == 2:
@@ -51,7 +54,7 @@ def read_truth(filename):
     current_graph = None
     current_clusters = []
 
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         for line in file:
 
             if len(line.strip().split()) == 2:
@@ -79,7 +82,14 @@ def read_truth(filename):
     return read_clusters
 
 
-def display_and_save_results(results, jaccard_summary_data, correctly_clustered, general_jacc, output_file, minimal=False):
+def display_and_save_results(
+    results,
+    jaccard_summary_data,
+    correctly_clustered,
+    general_jacc,
+    output_file,
+    minimal=False,
+):
     """
     Print the results and save them to a file, updated to handle graph IDs.
 
@@ -93,14 +103,18 @@ def display_and_save_results(results, jaccard_summary_data, correctly_clustered,
         :param minimal: If True, display minimal output.
     """
 
-    results.sort(key=lambda x: x['graph_id'])
+    results.sort(key=lambda x: x["graph_id"])
 
     total_extra_nodes = 0
     total_missing_nodes = 0
     total_truth_size = 0
 
     with open(output_file, "w") as file:
-        header = "Cluster Comparison Results by Graph\n" if not minimal else "Minimal Results\n"
+        header = (
+            "Cluster Comparison Results by Graph\n"
+            if not minimal
+            else "Minimal Results\n"
+        )
         print(header)
         file.write(header)
 
@@ -197,7 +211,6 @@ def transform_clusters(clustering_results, ground_truth_clusters):
     """
     transformed_results = []
 
-
     all_graphs = set(clustering_results.keys()).union(set(ground_truth_clusters.keys()))
 
     for graph_id in all_graphs:
@@ -220,12 +233,15 @@ def transform_clusters(clustering_results, ground_truth_clusters):
                 node_truth_clusters[node].add(cluster_idx)
 
         # Combine into a result dictionary
-        transformed_results.append({
-            "node_clusters": dict(node_clusters),
-            "ground_truth_clusters": dict(node_truth_clusters),
-        })
+        transformed_results.append(
+            {
+                "node_clusters": dict(node_clusters),
+                "ground_truth_clusters": dict(node_truth_clusters),
+            }
+        )
 
     return transformed_results
+
 
 def match_clusters_by_jaccard(cluster_graph, truth_graph):
     """
@@ -264,6 +280,7 @@ def match_clusters_by_jaccard(cluster_graph, truth_graph):
 
     return matches
 
+
 def calculate_metrics(cluster_data, truth_data):
     """
     Analyze node differences between clusters and the ground truth for each graph.
@@ -294,13 +311,14 @@ def calculate_metrics(cluster_data, truth_data):
         if not cluster_sets:
             continue
         # Create pairwise overlap matrix (Jacquard similarity) for all cluster-truth pairs
-        overlap_matrix = [[jaccard_similarity(c, t) for t in truth_sets] for c in cluster_sets]
+        overlap_matrix = [
+            [jaccard_similarity(c, t) for t in truth_sets] for c in cluster_sets
+        ]
 
         # Match clusters within this graph
         cluster_to_truth = match_clusters(overlap_matrix)
 
         current_jacc_sum = 0
-
 
         for i in cluster_to_truth:
             current_jacc_sum += overlap_matrix[i[0]][i[1]]
@@ -315,38 +333,48 @@ def calculate_metrics(cluster_data, truth_data):
             extra_nodes = cluster - truth_cluster
             missing_nodes = truth_cluster - cluster
 
-            results.append({
-                "graph_id": graph_id,
-                "cluster_index": cluster_idx,
-                "truth_index": truth_idx,
-                "extra_nodes": sorted(extra_nodes),
-                "missing_nodes": sorted(missing_nodes),
-                "truth_size": sorted(truth_cluster),
-            })
+            results.append(
+                {
+                    "graph_id": graph_id,
+                    "cluster_index": cluster_idx,
+                    "truth_index": truth_idx,
+                    "extra_nodes": sorted(extra_nodes),
+                    "missing_nodes": sorted(missing_nodes),
+                    "truth_size": sorted(truth_cluster),
+                }
+            )
 
         # Handle unmatched clusters (if any)
-        unmatched_clusters = set(range(len(cluster_sets))) - {c[0] for c in cluster_to_truth}
-        unmatched_truths = set(range(len(truth_sets))) - {c[1] for c in cluster_to_truth}
+        unmatched_clusters = set(range(len(cluster_sets))) - {
+            c[0] for c in cluster_to_truth
+        }
+        unmatched_truths = set(range(len(truth_sets))) - {
+            c[1] for c in cluster_to_truth
+        }
 
         for cluster_idx in unmatched_clusters:
-            results.append({
-                "graph_id": graph_id,
-                "cluster_index": cluster_idx,
-                "truth_index": None,
-                "extra_nodes": sorted(cluster_sets[cluster_idx]),
-                "missing_nodes": [],
-                "truth_size": sorted(truth_sets[truth_idx]),
-            })
+            results.append(
+                {
+                    "graph_id": graph_id,
+                    "cluster_index": cluster_idx,
+                    "truth_index": None,
+                    "extra_nodes": sorted(cluster_sets[cluster_idx]),
+                    "missing_nodes": [],
+                    "truth_size": sorted(truth_sets[truth_idx]),
+                }
+            )
 
         for truth_idx in unmatched_truths:
-            results.append({
-                "graph_id": graph_id,
-                "cluster_index": None,
-                "truth_index": truth_idx,
-                "extra_nodes": [],
-                "missing_nodes": sorted(truth_sets[truth_idx]),
-                "truth_size": sorted(truth_sets[truth_idx]),
-            })
+            results.append(
+                {
+                    "graph_id": graph_id,
+                    "cluster_index": None,
+                    "truth_index": truth_idx,
+                    "extra_nodes": [],
+                    "missing_nodes": sorted(truth_sets[truth_idx]),
+                    "truth_size": sorted(truth_sets[truth_idx]),
+                }
+            )
 
     return results, correctly_clustered, general_jacc
 
@@ -363,7 +391,7 @@ def jaccard_similarity(set1, set2):
 def match_clusters(overlap_matrix):
     """
     Match clusters based on highest overlap scores (Jaccard Similarity).
-    
+
     Args:
         overlap_matrix: 2D list where overlap_matrix[i][j] is the Jacquard similarity
                         between cluster i and truth cluster j.
@@ -379,6 +407,7 @@ def match_clusters(overlap_matrix):
     cluster_indices, truth_indices = linear_sum_assignment(cost_matrix)
 
     return list(zip(cluster_indices, truth_indices))
+
 
 def compute_jaccard_and_average(results):
     """
@@ -400,7 +429,9 @@ def compute_jaccard_and_average(results):
         node_clusters = result["node_clusters"]
         ground_truth_clusters = result["ground_truth_clusters"]
         # flatten sets of indices into one iterable and count unique
-        total_truth_clusters = len(set(chain.from_iterable(ground_truth_clusters.values())))
+        total_truth_clusters = len(
+            set(chain.from_iterable(ground_truth_clusters.values()))
+        )
         """"
         all_nodes = set(node_clusters.keys()).union(ground_truth_clusters.keys())
 
@@ -441,16 +472,18 @@ def compute_jaccard_and_average(results):
 
     # Compute statistics (mean, std dev, and median) for each group
 
-
     statistics_by_group = {}
     for cluster_count, indices in node_jaccard_indices.items():
         stats = {
             "mean": mean(indices),
-            "std_dev": stdev(indices) if len(indices) > 1 else 0.0,  # stdev requires at least 2 values
+            "std_dev": (
+                stdev(indices) if len(indices) > 1 else 0.0
+            ),  # stdev requires at least 2 values
         }
         statistics_by_group[cluster_count] = stats
     # """
     return statistics_by_group
+
 
 def match_clusters_jaccard(clusters, truth):
     matched_clusters = {}
@@ -482,33 +515,40 @@ def match_clusters_jaccard(clusters, truth):
 
     return matched_clusters, matched_truth
 
+
 def compare_files(clusters_file, truth_file, graphs, runs, name, minimal):
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     filename = f"errors/graph_errors_{timestamp}_{graphs}x{runs}{name}.txt"
 
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    results, correctly_clustered, general_jacc = calculate_metrics(clusters_file, truth_file)
+    results, correctly_clustered, general_jacc = calculate_metrics(
+        clusters_file, truth_file
+    )
 
     matched_clusters, matched_truth = match_clusters_jaccard(clusters_file, truth_file)
     matched_node_list = transform_clusters(matched_clusters, matched_truth)
     avg_jaccard = compute_jaccard_and_average(matched_node_list)
-    display_and_save_results(results, avg_jaccard, correctly_clustered, general_jacc, filename, minimal)
-
+    display_and_save_results(
+        results, avg_jaccard, correctly_clustered, general_jacc, filename, minimal
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze clusters compared to ground truth")
-    parser.add_argument('inputFile', type=str, help="Cluster file")
-    parser.add_argument('truthFile', type=str, help="Ground truth file")
-    parser.add_argument('graphs', type=int, help="Number of graphs")
-    parser.add_argument('runs', type=int, help="Simulations per graph")
-    parser.add_argument('--name', type=str, help="Output file note", default="")
-    parser.add_argument('-m', action='store_true', help="Minimal output")
+    parser = argparse.ArgumentParser(
+        description="Analyze clusters compared to ground truth"
+    )
+    parser.add_argument("inputFile", type=str, help="Cluster file")
+    parser.add_argument("truthFile", type=str, help="Ground truth file")
+    parser.add_argument("graphs", type=int, help="Number of graphs")
+    parser.add_argument("runs", type=int, help="Simulations per graph")
+    parser.add_argument("--name", type=str, help="Output file note", default="")
+    parser.add_argument("-m", action="store_true", help="Minimal output")
     args = parser.parse_args()
     clusters = read_cluster_file(args.inputFile)
     truth = read_truth(args.truthFile)
     compare_files(clusters, truth, args.graphs, args.runs, args.name, args.m)
+
 
 if __name__ == "__main__":
     main()

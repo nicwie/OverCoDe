@@ -1,7 +1,10 @@
+.cache/
 *.txt
+!CMakeLists.txt
 *.cbp
 bin/
 obj/
 *.depend
 test*
 *.layout
+build/
