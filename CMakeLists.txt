@@ -14,6 +14,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ENABLE_COVERAGE "Enable instrumentation for code coverage" OFF)
+
+if(ENABLE_COVERAGE)
+  if("${CMAKE_CXX_COMPILER_ID}" MATCHES "(GNU|Clang)")
+    # --coverage adds -fprofile-arcs and -ftest-coverage
+    add_compile_options(--coverage)
+    add_link_options(--coverage)
+    message(STATUS "Code coverage instrumentation enabled")
+  else()
+    message(WARNING "Code coverage usually requires GCC or Clang.")
+  endif()
+endif()
+
+# ... rest of your cmake
+
 set(GCC_CLANG_WARNING_FLAGS
     -Wall
     -Wextra
@@ -64,5 +79,5 @@ if(BUILD_TESTING)
 
   # Include the GoogleTest module to discover tests automatically.
   include(GoogleTest)
-  gtest_discover_tests(tests)
+  gtest_discover_tests(tests DISCOVERY_MODE PRE_TEST)
 endif()
