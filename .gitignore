@@ -5,6 +5,5 @@
 bin/
 obj/
 *.depend
-test*
 *.layout
 build/

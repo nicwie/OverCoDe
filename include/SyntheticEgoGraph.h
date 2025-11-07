@@ -11,13 +11,22 @@ private:
   // stores which nodes are in which cluster
   RandomGenerator rng;
 
+  // Parameters
+  static constexpr int CLUSTER_MEAN_SIZE = 125;
+  static constexpr int CLUSTER_STD_DEV = 25;
+  static constexpr int MIN_OVERLAP_SIZE = 0;
+  static constexpr int MAX_OVERLAP_SIZE = 10;
+  static constexpr int MIN_INTERCLUSTER_EDGES = 10;
+  static constexpr int MAX_INTERCLUSTER_EDGES = 20;
+
   void addNodes() {
-    // counter for where we are (what node we are considering)
+    // counter for what node we are considering
     size_t usedNodes = 0;
 
     // add pure (non-overlapping) nodes to clusters
     for (auto &cluster : clusters) {
-      const size_t clusterSize = static_cast<size_t>(rng.getNormalInt(125, 25));
+      const size_t clusterSize = static_cast<size_t>(
+          rng.getNormalInt(CLUSTER_MEAN_SIZE, CLUSTER_STD_DEV));
       for (size_t j = usedNodes; j < (usedNodes + clusterSize); j++) {
         cluster.push_back(j);
       }
@@ -29,7 +38,8 @@ private:
     // all possible combinations of r clusters
     for (size_t i = 0; i < clusters.size(); i++) {
       for (size_t j = i + 1; j < clusters.size(); j++) {
-        const size_t overlapSize = static_cast<size_t>(rng.getRandomInt(0, 10));
+        const size_t overlapSize = static_cast<size_t>(
+            rng.getRandomInt(MIN_OVERLAP_SIZE, MAX_OVERLAP_SIZE));
         for (size_t m = usedNodes; m < (usedNodes + overlapSize); m++) {
           clusters[i].push_back(m);
           clusters[j].push_back(m);
@@ -82,7 +92,8 @@ public:
     // add 10-20 edges between any 2 pairs of clusters
     for (size_t i = 0; i < clusters.size(); i++) {
       for (size_t j = i + 1; j < clusters.size(); j++) {
-        const int edgeCount = rng.getRandomInt(10, 20);
+        const int edgeCount =
+            rng.getRandomInt(MIN_INTERCLUSTER_EDGES, MAX_INTERCLUSTER_EDGES);
         for (int m = 0; m < edgeCount; m++) {
           unsigned long long addToI =
               clusters[i][rng.getRandomUll(0, clusters[i].size() - 1)];

@@ -58,9 +58,9 @@ private:
   std::vector<std::vector<int>> si;
   std::vector<std::vector<std::vector<int>>> C;
 
-  int maxThreads = 16;
+  static constexpr int maxThreads = 16;
 
-  struct vectorHash { // this seems to not be compatible with c++11 in some way
+  struct vectorHash {
     size_t operator()(const std::vector<int> &v) const {
       size_t seed = v.size();
       for (auto &i : v) {

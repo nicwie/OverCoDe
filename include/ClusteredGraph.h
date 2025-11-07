@@ -53,7 +53,7 @@ private:
   }
 
   // adds node to clusters according to overlaps
-  /* thinking for 3 clusters
+  /* for 3 clusters
       first we need to add overlap[0] (unique nodes) to each cluster
       then we need to add overlap[1] to all clusters as pairs 3nCr2 times
       then we need to add overlap[2] to all clusters at once
@@ -150,7 +150,7 @@ public:
 
     addNodes(clusters, overlaps);
 
-    // now connecting clusters internally
+    // connecting clusters internally
 
     for (auto &cluster : clusters) {
       for (size_t j = 0; j < cluster.size(); j++) {

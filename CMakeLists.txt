@@ -37,7 +37,11 @@ target_compile_options(
   ${PROJECT_NAME}
   PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:${GCC_CLANG_WARNING_FLAGS}>)
 
-# Add an option to enable/disable tests. toggle with -DBUILD_TESTING=ON/OFF
+find_package(Threads REQUIRED)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
+
+# Option to enable/disable tests. toggle with -DBUILD_TESTING=ON/OFF
 option(BUILD_TESTING "Build the testing suite" ON)
 
 if(BUILD_TESTING)
@@ -48,9 +52,15 @@ if(BUILD_TESTING)
     googletest URL https://github.com/google/googletest/archive/v1.14.0.zip)
   FetchContent_MakeAvailable(googletest)
 
-  add_executable(tests src/tests/test.cpp)
+  add_executable(
+    tests
+    tests/test_CLUSTEREDGRAPH.cpp tests/test_SYNTHETICEGOGRAPH.cpp
+    tests/test_GRAPH.cpp tests/test_OVERCODE.cpp tests/test_RANDOMGENERATOR.cpp)
 
-  target_link_libraries(tests PRIVATE GTest::gtest_main ${PROJECT_NAME}_lib)
+  target_include_directories(tests
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+  target_link_libraries(tests PRIVATE GTest::gtest_main)
 
   # Include the GoogleTest module to discover tests automatically.
   include(GoogleTest)
