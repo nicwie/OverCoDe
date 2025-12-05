@@ -27,8 +27,6 @@ if(ENABLE_COVERAGE)
   endif()
 endif()
 
-# ... rest of your cmake
-
 set(GCC_CLANG_WARNING_FLAGS
     -Wall
     -Wextra

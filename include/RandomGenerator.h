@@ -54,6 +54,15 @@ public:
     return dist(rng);
   }
 
+  // Generate a random integer using binomial distribution
+  int getBinomial(const int n, const double p) {
+    if (n < 0 || p < 0.0 || p > 1.0) {
+      throw std::invalid_argument("Invalid arguments for binomial distribution");
+    }
+    std::binomial_distribution<int> dist(n, p);
+    return dist(rng);
+  }
+
 private:
   std::mt19937 rng; // Mersenne Twister 19937 generator
 };

@@ -54,9 +54,9 @@ private:
 
   // adds node to clusters according to overlaps
   /* for 3 clusters
-      first we need to add overlap[0] (unique nodes) to each cluster
-      then we need to add overlap[1] to all clusters as pairs 3nCr2 times
-      then we need to add overlap[2] to all clusters at once
+      first we add overlap[0] (unique nodes) to each cluster
+      then we add overlap[1] to all clusters as pairs 3nCr2 times
+      then we add overlap[2] to all clusters at once
       so
       1 1 1
       2 2 2
@@ -212,8 +212,6 @@ public:
   void printProbabilities() const {
     std::cout << "p: " << p << std::endl;
     std::cout << "q: " << q << std::endl;
-    std::cout << "intraProb: " << intraProb << std::endl;
-    std::cout << "interProb: " << interProb << std::endl;
   }
 };
 

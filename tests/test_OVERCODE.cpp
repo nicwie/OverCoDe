@@ -46,11 +46,12 @@ TEST(OverCoDeTest, RunSmokeTest) {
   int T = 10;
   int k = 2;
   int rho = 2;
+  int h = 2;
   size_t ell = 20;
   double beta = 0.6;
   double alpha = 0.6;
 
-  OverCoDe overcode(adjList, T, k, rho, ell, beta, alpha);
+  OverCoDe overcode(adjList, T, k, rho, h, ell, beta, alpha);
 
   // Just run the algorithm. We can't easily check the output due to randomness,
   // so this is a "smoke test" to see if it runs without crashing.
@@ -68,4 +69,37 @@ TEST(OverCoDeTest, RunSmokeTest) {
   // than node 0 (non-overlap). This might not always hold due to randomness,
   // but it's a reasonable heuristic.
   EXPECT_GE(results[2].size(), results[0].size());
+}
+
+TEST(OverCoDeTest, DisjointCliquesSeparation) {
+  // Two disjoint triangles: 0-1-2 and 3-4-5
+  std::vector<std::vector<unsigned long long>> adjList(6);
+  adjList[0] = {1, 2}; adjList[1] = {0, 2}; adjList[2] = {0, 1};
+  adjList[3] = {4, 5}; adjList[4] = {3, 5}; adjList[5] = {3, 4};
+
+  int T = 20;
+  int k = 2;
+  int rho = 3;
+  int h = 2;
+  size_t ell = 200;
+  double beta = 0.6; // Low enough that bug (0.5) triggers merge, but logic (0.0) should separate
+  double alpha = 0.6;
+
+  OverCoDe overcode(adjList, T, k, rho, h, ell, beta, alpha);
+  overcode.runOverCoDe();
+
+  const auto &results = overcode.getResults();
+  
+  // Check if Node 0 and Node 3 share any cluster signature
+  bool sharedCluster = false;
+  for(const auto& sig0 : results[0]) {
+      for(const auto& sig3 : results[3]) {
+          if(sig0 == sig3) {
+              sharedCluster = true;
+          }
+      }
+  }
+  
+  // With correct logic, they should NOT share a cluster.
+  EXPECT_FALSE(sharedCluster) << "Disjoint cliques were merged! Likely due to signature padding bug.";
 }

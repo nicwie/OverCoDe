@@ -4,6 +4,7 @@
 #include "RandomGenerator.h"
 
 #include <algorithm>
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <ctime>
@@ -51,9 +52,10 @@ public:
 class OverCoDe {
 private:
   std::vector<std::vector<unsigned long long>> G;
-  int T, k, rho;
+  int T, k, rho, h;
   size_t ell;
   double beta, alpha;
+
   time_t startTime{}, elapsedTime{};
   std::vector<std::vector<int>> si;
   std::vector<std::vector<std::vector<int>>> C;
@@ -93,14 +95,14 @@ private:
   // Function to execute the distributed process
   std::vector<std::vector<Token>>
   distributedProcess(const std::vector<std::vector<unsigned long long>> &graph,
-                     size_t T_dist, const int k_dist,
-                     const int rho_dist) const {
+                     size_t T_dist, const int k_dist, const int rho_dist,
+                     const int h_dist) const {
     size_t n = graph.size();
     std::vector<std::unordered_map<Token, int>> receivedToken;
     receivedToken.resize(static_cast<size_t>(n));
     std::vector<std::vector<Token>> X;
     X.resize(static_cast<size_t>(n),
-             std::vector<Token>(static_cast<size_t>(T_dist + 1)));
+             std::vector<Token>(static_cast<size_t>(T_dist + 2)));
 
     // Random Initialization
     for (size_t u = 0; u < n; u++) {
@@ -108,6 +110,7 @@ private:
     }
 
     // Symmetry Breaking
+    // Step 1: Push tokens to k neighbors
     for (size_t u = 0; u < n; u++) {
       std::vector<unsigned long long> M = sample(k_dist, graph[u]);
       for (const unsigned long long v : M) {
@@ -115,15 +118,23 @@ private:
       }
     }
 
+    // Step 2: Sample h neighbors and check their inboxes
     for (size_t u = 0; u < n; u++) {
-      // Save the most common state to matrix; if equal, randomize state
-      X[u][1] = ((receivedToken[u][R] > receivedToken[u][B])   ? R
-                 : (receivedToken[u][R] < receivedToken[u][B]) ? B
-                                                               : randomToken());
+      int r_u = 0;
+      int b_u = 0;
+      std::vector<unsigned long long> M_h = sample(h_dist, graph[u]);
+
+      for (const unsigned long long v : M_h) {
+        r_u += receivedToken[v][R];
+        b_u += receivedToken[v][B];
+      }
+
+      // Determine state based on sums
+      X[u][1] = ((r_u > b_u) ? R : (b_u > r_u) ? B : randomToken());
     }
 
     // ρ-Majority process
-    for (size_t t = 2; t <= T_dist; t++) {
+    for (size_t t = 2; t <= T_dist + 1; t++) {
       for (size_t u = 0; u < n; u++) {
         std::vector<unsigned long long> v_sampled = sample(rho_dist, G[u]);
         int countB = 0;
@@ -169,12 +180,13 @@ private:
   }
 
   static std::vector<std::vector<int>>
-  clustersIDs(std::vector<std::vector<int>> &S, const double alpha) {
+  clustersIDs(std::vector<std::vector<int>> &S,
+              const double similarity_threshold) {
     std::vector<std::vector<int>> signatures;
     for (const auto &signatureV : S) {
       bool isUnique = true;
       for (const auto &signatureU : signatures) {
-        if (similarity(signatureU, signatureV) >= alpha) {
+        if (similarity(signatureU, signatureV) >= similarity_threshold) {
           isUnique = false;
           break;
         }
@@ -189,9 +201,10 @@ private:
 public:
   OverCoDe(const std::vector<std::vector<unsigned long long>> &adjList,
            const int rounds, const int pushes, const int majoritySamples,
-           size_t L, const double p_beta, const double p_alpha)
-      : G(adjList), T(rounds), k(pushes), rho(majoritySamples), ell(L),
-        beta(p_beta), alpha(p_alpha) {
+           const int sampleSize, size_t L, const double p_beta,
+           const double p_alpha)
+      : G(adjList), T(rounds), k(pushes), rho(majoritySamples), h(sampleSize),
+        ell(L), beta(p_beta), alpha(p_alpha) {
     si.resize(G.size());
     C.resize(G.size());
   }
@@ -202,24 +215,38 @@ public:
     // Generate Signatures
     // this provides a vector which has the most common result for every node in
     // each iteration
-    si.resize(G.size(), std::vector<int>(ell));
+    si.resize(G.size());
 
     // Stores vector of promises for the result of dp
     std::vector<std::future<std::vector<std::vector<Token>>>> threads(ell);
 
     Semaphore semaphore(maxThreads);
+    std::atomic<size_t> completedTasks{0};
 
     // creates threads
     for (size_t i = 0; i < ell; i++) {
       semaphore.acquire();
 
       // lambda that releases the semaphore after dp finishes
-      threads[i] = async(std::launch::async, [this, &semaphore]() {
-        auto result = distributedProcess(this->G, static_cast<size_t>(this->T),
-                                         this->k, this->rho);
-        semaphore.release();
-        return result;
-      });
+      threads[i] =
+          async(std::launch::async, [this, &semaphore, &completedTasks]() {
+            struct SemGuard {
+              Semaphore &s;
+              SemGuard(Semaphore &sem) : s(sem) {}
+              ~SemGuard() { s.release(); }
+            } guard(semaphore);
+
+            auto result =
+                distributedProcess(this->G, static_cast<size_t>(this->T),
+                                   this->k, this->rho, this->h);
+
+            size_t done = ++completedTasks;
+            if (done % 5 == 0 || done == this->ell) {
+              std::cout << "Signatures progress: " << done << "/" << this->ell
+                        << std::endl;
+            }
+            return result;
+          });
     }
 
     // waits for all threads to finish
@@ -232,7 +259,9 @@ public:
     for (size_t i = 0; i < ell; i++) {
       for (size_t u = 0; u < G.size(); ++u) {
         int countR = 0, countB = 0;
-        for (const auto &t : X[i][u]) {
+        // Count only over the majority dynamics rounds (indices 2 to T + 1)
+        for (size_t hist_idx = 2; hist_idx <= static_cast<size_t>(this->T + 1); hist_idx++) {
+          Token t = X[i][u][hist_idx];
           (t == R) ? countR++ : countB++;
         }
 
@@ -248,7 +277,7 @@ public:
 
     std::cout << "Done generating signatures" << std::endl;
 
-    std::vector<std::vector<int>> sharedMemory(G.size());
+    std::vector<std::vector<int>> pureSignatures;
 
     // Identify Clusters
     for (size_t u = 0; u < G.size(); ++u) {
@@ -256,12 +285,12 @@ public:
       if (static_cast<double>(count_if(si[u].begin(), si[u].end(),
                                        [](const int x) { return x != -1; })) >=
           beta * static_cast<double>(ell)) {
-        sharedMemory[u] = si[u];
+        pureSignatures.push_back(si[u]);
       }
       //}
     }
 
-    std::vector<std::vector<int>> signatures = clustersIDs(sharedMemory, beta);
+    std::vector<std::vector<int>> signatures = clustersIDs(pureSignatures, beta);
 
     std::cout << "Got Pure Signatures" << std::endl;
     // #pragma omp parallel for

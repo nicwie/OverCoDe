@@ -30,6 +30,7 @@ struct AppParams {
   int k = 0;   // pushes
   int l = 0;   // iterations
   int rho = 3; // majority samples
+  int h = 0;   // sampling neighbors
 };
 
 AppParams parseArgs(int argc, char *argv[]) {
@@ -41,7 +42,6 @@ AppParams parseArgs(int argc, char *argv[]) {
         "OutputFile Graphs Runs overlapSize [overlapSize ...]");
   }
 
-  double p = 0;
   if (std::stod(argv[2]) > 1 || std::stod(argv[2]) <= 0 ||
       std::stod(argv[3]) > 1 || std::stod(argv[3]) <= 0) {
     throw std::runtime_error("Alpha and beta must be between 1 and 0!");
@@ -68,13 +68,18 @@ AppParams parseArgs(int argc, char *argv[]) {
     params.n = 125;
     params.T = static_cast<int>(50 * log2(params.n));
     params.l = static_cast<int>(250 * log2(params.n));
-    p = pow(static_cast<double>(params.n), 0.75) / params.n;
-    params.k = static_cast<int>(log2(params.n) / p);
+    // params.k = static_cast<int>(log2(params.n) / p);
+    double logn = log2(params.n);
+    int c = 2; // two or three
+    // params.k = static_cast<int>(c * sqrt(params.n) * logn * logn * logn *
+    // logn);
+    params.k = static_cast<int>(c * sqrt(params.n) * logn * logn);
+    params.h = static_cast<int>(c * sqrt(params.n));
 
   } else if (static_cast<std::string>(argv[1]) == "false") {
     if (argc <= 7) {
       throw std::runtime_error(
-          "Usage: ./main false OutputFile Graphs Runs overlapSize "
+          "Usage: ./main false Alpha Beta OutputFile Graphs Runs overlapSize "
           "[overlapSize [overlapSize ...]]");
     }
 
@@ -85,9 +90,21 @@ AppParams parseArgs(int argc, char *argv[]) {
     params.n = 5000;
     params.T = static_cast<int>(10 * log2(params.n));
     params.l = params.T;
-    p = pow(static_cast<double>(params.n), 0.75) / params.n;
-    params.k = static_cast<int>(log2(params.n) / p);
+    // params.k = static_cast<int>(log2(params.n) / p);
+    double logn = log2(params.n);
+    int c = 2; // two or three
+    // params.k = static_cast<int>(c * sqrt(params.n) * logn * logn * logn *
+    // logn);
+    params.k = static_cast<int>(c * sqrt(params.n) * logn);
+    params.h = static_cast<int>(c * sqrt(params.n));
   }
+  std::cout << "Calculated parameters:" << std::endl;
+  std::cout << "  n (nodes): " << params.n << std::endl;
+  std::cout << "  T (rounds): " << params.T << std::endl;
+  std::cout << "  l (runs): " << params.l << std::endl;
+  std::cout << "  k (pushes): " << params.k << std::endl;
+  std::cout << "  h (samples): " << params.h << std::endl;
+
   return params;
 }
 
@@ -192,7 +209,8 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < params.runs; j++) {
       std::cout << "[" << i << "]" << "[" << j << "]" << std::endl;
       OverCoDe ocd(graph->getAdjList(), params.T, params.k, params.rho,
-                   static_cast<size_t>(params.l), params.beta, params.alpha);
+                   params.h, static_cast<size_t>(params.l), params.beta,
+                   params.alpha);
       ocd.runOverCoDe();
 
       std::ofstream f;
