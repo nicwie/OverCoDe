@@ -57,10 +57,20 @@ public:
   // Generate a random integer using binomial distribution
   int getBinomial(const int n, const double p) {
     if (n < 0 || p < 0.0 || p > 1.0) {
-      throw std::invalid_argument("Invalid arguments for binomial distribution");
+      throw std::invalid_argument(
+          "Invalid arguments for binomial distribution");
     }
     std::binomial_distribution<int> dist(n, p);
     return dist(rng);
+  }
+
+  // Fast random integer between 0 and max_inclusive using modulo.
+  // Slightly biased if range is not a divisor of RNG range, but significantly
+  // faster.
+  int getFastRandomInt(const int max_inclusive) {
+    // cast to unsigned to use the full range of the generator naturally
+    return static_cast<int>(rng() %
+                            (static_cast<unsigned long>(max_inclusive) + 1));
   }
 
 private:

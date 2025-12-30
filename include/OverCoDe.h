@@ -77,44 +77,49 @@ private:
     return static_cast<Token>(rng.getRandomInt(0, 1));
   }
 
-  // Function to sample k neighbors from a set of neighbors N(u)
-  static std::vector<unsigned long long>
-  sample(const int num, const std::vector<unsigned long long> &neighbors) {
-    std::vector<unsigned long long> sampled;
-    if (neighbors.empty()) {
-      return sampled;
-    }
-    for (int i = 0; i < num; i++) {
-      const int neighbor =
-          rng.getRandomInt(0, static_cast<int>(neighbors.size()) - 1);
-      sampled.push_back(neighbors[static_cast<size_t>(neighbor)]);
-    }
-    return sampled;
-  }
-
   // Function to execute the distributed process
-  std::vector<std::vector<Token>>
+  std::vector<Token>
   distributedProcess(const std::vector<std::vector<unsigned long long>> &graph,
                      size_t T_dist, const int k_dist, const int rho_dist,
-                     const int h_dist) const {
+                     const int h_dist,
+                     std::vector<int> &receivedR, // Reusable scratch buffer
+                     std::vector<int> &receivedB  // Reusable scratch buffer
+  ) const {
     size_t n = graph.size();
-    std::vector<std::unordered_map<Token, int>> receivedToken;
-    receivedToken.resize(static_cast<size_t>(n));
-    std::vector<std::vector<Token>> X;
-    X.resize(static_cast<size_t>(n),
-             std::vector<Token>(static_cast<size_t>(T_dist + 2)));
+    size_t rounds = T_dist + 2;
+
+    // Flattened X: row-major [u * rounds + t]
+    std::vector<Token> X(n * rounds);
+
+    // Reset scratch buffers
+    std::fill(receivedR.begin(), receivedR.end(), 0);
+    std::fill(receivedB.begin(), receivedB.end(), 0);
 
     // Random Initialization
     for (size_t u = 0; u < n; u++) {
-      X[u][0] = (randomToken());
+      X[u * rounds + 0] = randomToken();
     }
 
     // Symmetry Breaking
     // Step 1: Push tokens to k neighbors
     for (size_t u = 0; u < n; u++) {
-      std::vector<unsigned long long> M = sample(k_dist, graph[u]);
-      for (const unsigned long long v : M) {
-        ++receivedToken[v][X[u][0]];
+      const auto &neighbors = graph[u];
+      if (neighbors.empty())
+        continue;
+
+      Token val = X[u * rounds + 0];
+      size_t sz = neighbors.size();
+
+      // Inline sampling
+      for (int i = 0; i < k_dist; ++i) {
+        // Optimization: Use fast RNG
+        int idx = rng.getFastRandomInt(static_cast<int>(sz) - 1);
+        unsigned long long v = neighbors[static_cast<size_t>(idx)];
+        if (val == R) {
+          ++receivedR[v];
+        } else {
+          ++receivedB[v];
+        }
       }
     }
 
@@ -122,29 +127,44 @@ private:
     for (size_t u = 0; u < n; u++) {
       int r_u = 0;
       int b_u = 0;
-      std::vector<unsigned long long> M_h = sample(h_dist, graph[u]);
+      const auto &neighbors = graph[u];
 
-      for (const unsigned long long v : M_h) {
-        r_u += receivedToken[v][R];
-        b_u += receivedToken[v][B];
+      if (!neighbors.empty()) {
+        size_t sz = neighbors.size();
+        for (int i = 0; i < h_dist; i++) {
+          // Optimization: Use fast RNG
+          int idx = rng.getFastRandomInt(static_cast<int>(sz) - 1);
+          unsigned long long v = neighbors[static_cast<size_t>(idx)];
+          r_u += receivedR[v];
+          b_u += receivedB[v];
+        }
       }
 
       // Determine state based on sums
-      X[u][1] = ((r_u > b_u) ? R : (b_u > r_u) ? B : randomToken());
+      X[u * rounds + 1] = ((r_u > b_u) ? R : (b_u > r_u) ? B : randomToken());
     }
 
     // ρ-Majority process
     for (size_t t = 2; t <= T_dist + 1; t++) {
       for (size_t u = 0; u < n; u++) {
-        std::vector<unsigned long long> v_sampled = sample(rho_dist, G[u]);
+        const auto &neighbors = G[u];
         int countB = 0;
         int countR = 0;
-        for (const unsigned long long v : v_sampled) {
-          (X[v][t - 1] == R) ? countR++ : countB++;
+
+        if (!neighbors.empty()) {
+          size_t sz = neighbors.size();
+          for (int i = 0; i < rho_dist; i++) {
+            // Optimization: Use fast RNG
+            int idx = rng.getFastRandomInt(static_cast<int>(sz) - 1);
+            unsigned long long v = neighbors[static_cast<size_t>(idx)];
+            Token prev = X[v * rounds + (t - 1)];
+            (prev == R) ? countR++ : countB++;
+          }
         }
-        X[u][t] = ((countR > countB)   ? R
-                   : (countR < countB) ? B
-                                       : randomToken());
+
+        X[u * rounds + t] = ((countR > countB)   ? R
+                             : (countR < countB) ? B
+                                                 : randomToken());
       }
     }
     return X;
@@ -217,51 +237,62 @@ public:
     // each iteration
     si.resize(G.size());
 
-    // Stores vector of promises for the result of dp
-    std::vector<std::future<std::vector<std::vector<Token>>>> threads(ell);
+    // Stores results from threads
+    std::vector<std::vector<Token>> X(ell);
 
-    Semaphore semaphore(maxThreads);
+    // Atomic counter for distributing work
+    std::atomic<size_t> nextTaskIndex{0};
     std::atomic<size_t> completedTasks{0};
 
-    // creates threads
-    for (size_t i = 0; i < ell; i++) {
-      semaphore.acquire();
+    // Determine number of worker threads
+    size_t numThreads = std::min(static_cast<size_t>(maxThreads), ell);
+    std::vector<std::thread> workers;
 
-      // lambda that releases the semaphore after dp finishes
-      threads[i] =
-          async(std::launch::async, [this, &semaphore, &completedTasks]() {
-            struct SemGuard {
-              Semaphore &s;
-              SemGuard(Semaphore &sem) : s(sem) {}
-              ~SemGuard() { s.release(); }
-            } guard(semaphore);
+    // Worker lambda
+    auto worker = [this, &X, &nextTaskIndex, &completedTasks]() {
+      // Thread-local scratch buffers to avoid reallocation
+      std::vector<int> localRecR(this->G.size(), 0);
+      std::vector<int> localRecB(this->G.size(), 0);
 
-            auto result =
-                distributedProcess(this->G, static_cast<size_t>(this->T),
-                                   this->k, this->rho, this->h);
+      while (true) {
+        size_t i = nextTaskIndex.fetch_add(1);
+        if (i >= this->ell) {
+          return;
+        }
 
-            size_t done = ++completedTasks;
-            if (done % 5 == 0 || done == this->ell) {
-              std::cout << "Signatures progress: " << done << "/" << this->ell
-                        << std::endl;
-            }
-            return result;
-          });
+        X[i] =
+            distributedProcess(this->G, static_cast<size_t>(this->T), this->k,
+                               this->rho, this->h, localRecR, localRecB);
+
+        // size_t done = ++completedTasks;
+        // if (done % 20 == 0 || done == this->ell) {
+        //   std::cout << "Signatures progress: " << done << "/" << this->ell
+        //             << std::endl;
+        // }
+      }
+    };
+
+    // Spawn workers
+    for (size_t i = 0; i < numThreads; ++i) {
+      workers.emplace_back(worker);
     }
 
-    // waits for all threads to finish
-    std::vector<std::vector<std::vector<Token>>> X(ell + 1);
-    for (size_t i = 0; i < ell; i++) {
-      X[i] = threads[i].get();
+    // Join workers
+    for (auto &t : workers) {
+      t.join();
     }
 
     // Count if a state appears more often than alpha * T
+    size_t rounds = static_cast<size_t>(this->T + 2);
+
     for (size_t i = 0; i < ell; i++) {
       for (size_t u = 0; u < G.size(); ++u) {
         int countR = 0, countB = 0;
         // Count only over the majority dynamics rounds (indices 2 to T + 1)
-        for (size_t hist_idx = 2; hist_idx <= static_cast<size_t>(this->T + 1); hist_idx++) {
-          Token t = X[i][u][hist_idx];
+        for (size_t hist_idx = 2; hist_idx <= static_cast<size_t>(this->T + 1);
+             hist_idx++) {
+          // Access flattened array
+          Token t = X[i][u * rounds + hist_idx];
           (t == R) ? countR++ : countB++;
         }
 
@@ -290,7 +321,8 @@ public:
       //}
     }
 
-    std::vector<std::vector<int>> signatures = clustersIDs(pureSignatures, beta);
+    std::vector<std::vector<int>> signatures =
+        clustersIDs(pureSignatures, beta);
 
     std::cout << "Got Pure Signatures" << std::endl;
     // #pragma omp parallel for
