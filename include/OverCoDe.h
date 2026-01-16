@@ -9,9 +9,9 @@
 #include <cstddef>
 #include <ctime>
 #include <fstream>
-#include <future>
 #include <iostream>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -60,8 +60,6 @@ private:
   std::vector<std::vector<int>> si;
   std::vector<std::vector<std::vector<int>>> C;
 
-  static constexpr int maxThreads = 16;
-
   struct vectorHash {
     size_t operator()(const std::vector<int> &v) const {
       size_t seed = v.size();
@@ -78,26 +76,34 @@ private:
   }
 
   // Function to execute the distributed process
-  std::vector<Token>
-  distributedProcess(const std::vector<std::vector<unsigned long long>> &graph,
-                     size_t T_dist, const int k_dist, const int rho_dist,
-                     const int h_dist,
-                     std::vector<int> &receivedR, // Reusable scratch buffer
-                     std::vector<int> &receivedB  // Reusable scratch buffer
+  void distributedProcess(
+      const std::vector<std::vector<unsigned long long>> &graph, size_t T_dist,
+      const int k_dist, const int rho_dist, const int h_dist,
+      const double alpha_dist,
+      std::vector<int> &receivedR,   // Reusable scratch buffer
+      std::vector<int> &receivedB,   // Reusable scratch buffer
+      std::vector<Token> &history,   // Reusable scratch buffer for X
+      std::vector<int> &runResult    // Output: Result for each node
   ) const {
     size_t n = graph.size();
     size_t rounds = T_dist + 2;
 
-    // Flattened X: row-major [u * rounds + t]
-    std::vector<Token> X(n * rounds);
+    // Ensure history buffer is large enough
+    if (history.size() < n * rounds) {
+      history.resize(n * rounds);
+    }
+    // Result buffer size
+    if (runResult.size() < n) {
+      runResult.resize(n);
+    }
 
     // Reset scratch buffers
     std::fill(receivedR.begin(), receivedR.end(), 0);
     std::fill(receivedB.begin(), receivedB.end(), 0);
 
-    // Random Initialization
+    // Random Initialization: Round 0
     for (size_t u = 0; u < n; u++) {
-      X[u * rounds + 0] = randomToken();
+      history[0 * n + u] = randomToken();
     }
 
     // Symmetry Breaking
@@ -107,7 +113,7 @@ private:
       if (neighbors.empty())
         continue;
 
-      Token val = X[u * rounds + 0];
+      Token val = history[0 * n + u];
       size_t sz = neighbors.size();
 
       // Inline sampling
@@ -141,13 +147,17 @@ private:
       }
 
       // Determine state based on sums
-      X[u * rounds + 1] = ((r_u > b_u) ? R : (b_u > r_u) ? B : randomToken());
+      history[1 * n + u] =
+          ((r_u > b_u) ? R : (b_u > r_u) ? B : randomToken());
     }
 
     // ρ-Majority process
     for (size_t t = 2; t <= T_dist + 1; t++) {
+      size_t prev_round_offset = (t - 1) * n;
+      size_t curr_round_offset = t * n;
+
       for (size_t u = 0; u < n; u++) {
-        const auto &neighbors = G[u];
+        const auto &neighbors = graph[u];
         int countB = 0;
         int countR = 0;
 
@@ -157,17 +167,39 @@ private:
             // Optimization: Use fast RNG
             int idx = rng.getFastRandomInt(static_cast<int>(sz) - 1);
             unsigned long long v = neighbors[static_cast<size_t>(idx)];
-            Token prev = X[v * rounds + (t - 1)];
+            Token prev = history[prev_round_offset + v];
             (prev == R) ? countR++ : countB++;
           }
         }
 
-        X[u * rounds + t] = ((countR > countB)   ? R
-                             : (countR < countB) ? B
-                                                 : randomToken());
+        history[curr_round_offset + u] =
+            ((countR > countB) ? R : (countR < countB) ? B : randomToken());
       }
     }
-    return X;
+
+    // Calculate the result for this run immediately to save memory
+    // Reuse receivedR/receivedB as counters to avoid allocation
+    std::fill(receivedR.begin(), receivedR.end(), 0);
+    std::fill(receivedB.begin(), receivedB.end(), 0);
+
+    for (size_t hist_idx = 2; hist_idx <= T_dist + 1; hist_idx++) {
+      size_t round_offset = hist_idx * n;
+      for (size_t u = 0; u < n; ++u) {
+        Token t = history[round_offset + u];
+        (t == R) ? receivedR[u]++ : receivedB[u]++;
+      }
+    }
+
+    double threshold = alpha_dist * static_cast<double>(T_dist);
+    for (size_t u = 0; u < n; ++u) {
+      if (receivedR[u] >= threshold) {
+        runResult[u] = R;
+      } else if (receivedB[u] >= threshold) {
+        runResult[u] = B;
+      } else {
+        runResult[u] = -1; // Assume -1 indicates uncertainty
+      }
+    }
   }
 
   /**
@@ -200,7 +232,7 @@ private:
   }
 
   static std::vector<std::vector<int>>
-  clustersIDs(std::vector<std::vector<int>> &S,
+  clustersIDs(const std::vector<std::vector<int>> &S,
               const double similarity_threshold) {
     std::vector<std::vector<int>> signatures;
     for (const auto &signatureV : S) {
@@ -236,23 +268,33 @@ public:
     // this provides a vector which has the most common result for every node in
     // each iteration
     si.resize(G.size());
+    // Clear previous results if any
+    for (auto &s : si)
+      s.clear();
+    // Pre-allocate si for performance (we know we will add 'ell' elements)
+    for (auto &s : si)
+      s.reserve(ell);
 
-    // Stores results from threads
-    std::vector<std::vector<Token>> X(ell);
+    // Stores results from threads: [run_index][node_index]
+    std::vector<std::vector<int>> runResults(ell);
 
     // Atomic counter for distributing work
     std::atomic<size_t> nextTaskIndex{0};
-    std::atomic<size_t> completedTasks{0};
 
     // Determine number of worker threads
-    size_t numThreads = std::min(static_cast<size_t>(maxThreads), ell);
+    size_t hw = std::thread::hardware_concurrency();
+    size_t maxThreads = (hw > 0) ? hw : 4;
+    size_t numThreads = std::min(maxThreads, ell);
     std::vector<std::thread> workers;
 
     // Worker lambda
-    auto worker = [this, &X, &nextTaskIndex, &completedTasks]() {
+    auto worker = [this, &runResults, &nextTaskIndex]() {
       // Thread-local scratch buffers to avoid reallocation
       std::vector<int> localRecR(this->G.size(), 0);
       std::vector<int> localRecB(this->G.size(), 0);
+      size_t rounds = static_cast<size_t>(this->T + 2);
+      std::vector<Token> localHistory(this->G.size() * rounds);
+      std::vector<int> localResult(this->G.size());
 
       while (true) {
         size_t i = nextTaskIndex.fetch_add(1);
@@ -260,15 +302,12 @@ public:
           return;
         }
 
-        X[i] =
-            distributedProcess(this->G, static_cast<size_t>(this->T), this->k,
-                               this->rho, this->h, localRecR, localRecB);
+        distributedProcess(this->G, static_cast<size_t>(this->T), this->k,
+                           this->rho, this->h, this->alpha, localRecR,
+                           localRecB, localHistory, localResult);
 
-        // size_t done = ++completedTasks;
-        // if (done % 20 == 0 || done == this->ell) {
-        //   std::cout << "Signatures progress: " << done << "/" << this->ell
-        //             << std::endl;
-        // }
+        // Store compacted result
+        runResults[i] = localResult;
       }
     };
 
@@ -282,27 +321,10 @@ public:
       t.join();
     }
 
-    // Count if a state appears more often than alpha * T
-    size_t rounds = static_cast<size_t>(this->T + 2);
-
-    for (size_t i = 0; i < ell; i++) {
-      for (size_t u = 0; u < G.size(); ++u) {
-        int countR = 0, countB = 0;
-        // Count only over the majority dynamics rounds (indices 2 to T + 1)
-        for (size_t hist_idx = 2; hist_idx <= static_cast<size_t>(this->T + 1);
-             hist_idx++) {
-          // Access flattened array
-          Token t = X[i][u * rounds + hist_idx];
-          (t == R) ? countR++ : countB++;
-        }
-
-        if (countR >= alpha * T) {
-          si[u].push_back(R);
-        } else if (countB >= alpha * T) {
-          si[u].push_back(B);
-        } else {
-          si[u].push_back(-1); // Assume -1 indicates uncertainty
-        }
+    // Transpose results: runResults[run][node] -> si[node][run]
+    for (size_t u = 0; u < G.size(); ++u) {
+      for (size_t i = 0; i < ell; i++) {
+        si[u].push_back(runResults[i][u]);
       }
     }
 

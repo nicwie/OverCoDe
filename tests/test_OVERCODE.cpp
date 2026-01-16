@@ -103,3 +103,30 @@ TEST(OverCoDeTest, DisjointCliquesSeparation) {
   // With correct logic, they should NOT share a cluster.
   EXPECT_FALSE(sharedCluster) << "Disjoint cliques were merged! Likely due to signature padding bug.";
 }
+
+TEST(OverCoDeTest, LargeScaleStressTest) {
+  // 1000 nodes in a ring
+  int n = 1000;
+  std::vector<std::vector<unsigned long long>> adjList(n);
+  for(int i=0; i<n; ++i) {
+      adjList[i].push_back((i+1)%n);
+      adjList[i].push_back((i-1+n)%n);
+  }
+
+  // Parameters designed to stress memory allocation
+  // n=1000, T=100, ell=5000
+  // 1000 * 5000 * 4 bytes ≈ 20 MB (plus small scratch buffers per thread)
+  
+  int T = 100;
+  int k = 2;
+  int rho = 3;
+  int h = 2;
+  size_t ell = 5000;
+  double beta = 0.6;
+  double alpha = 0.6;
+
+  OverCoDe overcode(adjList, T, k, rho, h, ell, beta, alpha);
+  
+  // Should not crash (OOM) and should finish in reasonable time
+  ASSERT_NO_THROW(overcode.runOverCoDe());
+}
