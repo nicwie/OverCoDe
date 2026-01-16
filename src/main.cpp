@@ -1,10 +1,8 @@
-// Copyright (c) 2025 Nic Sebastian Wiesinger. All Rights Reserved.
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <exception>
 #include <iostream>
-#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -64,16 +62,13 @@ AppParams parseArgs(int argc, char *argv[]) {
           "Usage: ./main true alpha beta OutputFile Graphs Runs");
     }
 
+    double logn = log2(params.n);
     params.isEgoGraph = true;
     params.n = 125;
-    params.T = static_cast<int>(50 * log2(params.n));
-    params.l = static_cast<int>(250 * log2(params.n));
-    // params.k = static_cast<int>(log2(params.n) / p);
-    double logn = log2(params.n);
+    params.T = static_cast<int>(50 * logn);
+    params.l = static_cast<int>(250 * logn);
     int c = 2; // two or three
-    // params.k = static_cast<int>(c * sqrt(params.n) * logn * logn * logn *
-    // logn);
-    params.k = static_cast<int>(c * sqrt(params.n) * logn * logn);
+    params.k = static_cast<int>(c * sqrt(params.n) * logn);
     params.h = static_cast<int>(c * sqrt(params.n));
 
   } else if (static_cast<std::string>(argv[1]) == "false") {
@@ -86,15 +81,12 @@ AppParams parseArgs(int argc, char *argv[]) {
     for (int i = 7; i < argc; i++) {
       params.overlaps.push_back(std::stoull(argv[i]));
     }
+    double logn = log2(params.n);
     params.isEgoGraph = false;
     params.n = 5000;
-    params.T = static_cast<int>(10 * log2(params.n));
+    params.T = static_cast<int>(10 * logn);
     params.l = params.T;
-    // params.k = static_cast<int>(log2(params.n) / p);
-    double logn = log2(params.n);
     int c = 2; // two or three
-    // params.k = static_cast<int>(c * sqrt(params.n) * logn * logn * logn *
-    // logn);
     params.k = static_cast<int>(c * sqrt(params.n) * logn);
     params.h = static_cast<int>(c * sqrt(params.n));
   }

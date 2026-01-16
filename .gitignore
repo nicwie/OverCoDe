@@ -7,3 +7,8 @@ obj/
 *.depend
 *.layout
 build/
+build-coverage/
+Testing/
+callgrind.out*
+compile_commands.json
+massif.out*
