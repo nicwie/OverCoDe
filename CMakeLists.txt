@@ -36,7 +36,7 @@ set(GCC_CLANG_WARNING_FLAGS
     -Wconversion
     -Werror)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp src/ArgsParser.cpp)
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
@@ -68,7 +68,8 @@ if(BUILD_TESTING)
   add_executable(
     tests
     tests/test_CLUSTEREDGRAPH.cpp tests/test_SYNTHETICEGOGRAPH.cpp
-    tests/test_GRAPH.cpp tests/test_OVERCODE.cpp tests/test_RANDOMGENERATOR.cpp)
+    tests/test_GRAPH.cpp tests/test_OVERCODE.cpp tests/test_RANDOMGENERATOR.cpp
+    tests/test_ARGSPARSER.cpp src/ArgsParser.cpp)
 
   target_include_directories(tests
                              PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
